@@ -1,0 +1,7 @@
+/*
+@use 'sass:string';
+@use 'vuetify/settings' with (
+  $body-font-family: string.unquote('"Open Sans", sans-serif'),
+  $heading-font-family: string.unquote('"Montserrat", sans-serif')
+);
+*/
