@@ -1,5 +1,5 @@
 <script setup>
-  import { reactive, ref } from 'vue';
+  import { reactive, ref, computed } from 'vue';
   //import { useRules } from 'vuetify/labs/rules'
   import { VMaskInput } from 'vuetify/labs/VMaskInput'
   import { appConfig } from './config'
@@ -138,20 +138,156 @@
     isCalculatorStep.value = true
   }
 
-  const items = [
+  const activeId = ref(1)
+
+  const items = ref([
     {
-      name: 'Item #1',
+      title: 'Общие симптомы',
       id: 1,
+      active: true,
+      groupsTitle: 'Отметьте какие из общих симптомов беспокоят Вас больше всего в настоящее время.',
+      groups: [
+        {
+          id: 101,
+          title: 'Низкий уровень энергии',
+          checkboxes: [
+            'Усталость по утрам',
+            'Весенняя усталость',
+            'Усталость постоянная',
+            'Перегруженность',
+            'Слабость',
+            'Медлительность',
+            'Высокие нагрузки',
+            'Перенапряжение',
+            'Джетлаг',
+          ]
+        },
+        {
+          id: 102,
+          title: 'Физическое недомогание',
+          checkboxes: [
+            'Процесс выздоровления после болезни',
+            'Послеоперационный период',
+            'Подготовка к оперативному лечению',
+            'Физическое истощение',
+            'Изнуряющая тяжелая болезнь',
+            'Частое употребление алкоголя',
+            'Хроническая интоксикация',
+          ]
+        }
+      ],
     },
     {
-      name: 'Item #2',
+      title: 'Сигнатуры',
       id: 2,
+      active: false,
+      groupsTitle: 'Для следующего шага Вам потребуется зеркало. Внимательно рассмотрите свое лицо, шею.Отмечайте все небольшие изменения, которые Вы замечаете. При дефицитах минералов, организм, прежде всего, истощает их запасы в коже. Это может проявляться различными, иногда малозаметными симптомами.',
+      groups: [
+        {
+          id: 103,
+          title: 'Общий вид кожи',
+          checkboxes: [
+            'Чекбокс 1',
+            'Чекбокс 2',
+          ]
+        },
+        {
+          id: 104,
+          title: 'Характеристика особенностей морфотипа лица',
+          checkboxes: [
+            'Чекбокс 1',
+            'Чекбокс 2',
+            'Чекбокс 3',
+          ]
+        },
+        {
+          id: 105,
+          title: 'Сигнатуры в области глаз и периорбитальной области',
+          checkboxes: [
+            'Глубокая морщина',
+            'Темные круги',
+          ]
+        }
+      ]
     },
     {
-      name: 'Item #3',
+      title: 'Психологическое состояние',
       id: 3,
+      active: false,
+      groupsTitle: 'Отметьте какие характеристики к Вам относятся.',
+      groups: [
+        {
+          id: 106,
+          title: 'Страхи',
+          checkboxes: [
+            'Чекбокс 1',
+            'Чекбокс 2',
+          ]
+        },
+        {
+          id: 107,
+          title: 'Настроение',
+          checkboxes: [
+            'Чекбокс 1',
+            'Чекбокс 2',
+            'Чекбокс 3',
+          ]
+        }
+      ]
     },
-  ]
+  ])
+
+  const checkboxItems1 = ref([
+    'Усталость по утрам',
+    'Весенняя усталость',
+    'Усталость постоянная',
+    'Перегруженность',
+    'Слабость',
+    'Медлительность',
+    'Высокие нагрузки',
+    'Перенапряжение',
+    'Джетлаг',
+  ])
+
+  const checkboxItems2 = ref([
+    'Процесс выздоровления после болезни',
+    'Послеоперационный период',
+    'Подготовка к оперативному лечению',
+    'Физическое истощение',
+    'Изнуряющая тяжелая болезнь',
+    'Частое употребление алкоголя',
+    'Хроническая интоксикация',
+  ])
+
+  const expanded = ref([])
+
+  // Вычисляемое свойство filteredItem 
+  // Один отфильтрованный объект items по свойству active: true
+  // Возвращает объект
+  const filteredItem = computed(() => {
+    // return items.value.filter((t) => t.active)
+    return items.value.find((t) => t.active)
+  })
+
+  function testClick(item) {
+
+    // Убираю active с прошлого элемента
+    items.value.forEach(function(i) {
+      i.active = false
+    });
+
+    // Добавляю active к текущему элементу
+    item.active = true
+
+    // Обновляю переменную activeId
+    activeId.value = item.id
+
+    // Обновляю массив с открытыми панелями
+    expanded.value = Object.keys(filteredItem.value.groups)
+  }
+
+  // Открываю панели
+  expanded.value = Object.keys(filteredItem.value.groups)
 
 </script>
 
@@ -167,44 +303,81 @@
               <v-card
                 class="navbar elevation-2 rounded-lg"
                 max-width="300">
-                <v-list
-                  :items="items"
-                  item-title="name"
-                  item-value="id">
+                <v-list>
+                  <!-- Статическая часть списка -->
+                  <v-list-item
+                    :link=true>
+                    Личная информация
+                  </v-list-item>
+                  <!-- Динамическая часть списка -->
+                  <v-list-item
+                    v-for="item in items"
+                    :key="item.id"
+                    :title="item.title"
+                    :link=true
+                    :active="item.active"
+                    @click=testClick(item)
+                  ></v-list-item>
                 </v-list>
               </v-card>
             <!-- </div> -->
             <div class="content">
-              <div class="title elevation-1 rounded-lg pl-6 lr-6 pb-3 pt-3 mb-2">Отметьте какие из общих симптомов беспокоят вас больше всего в настоящее время.</div>
+
+              <div class="title elevation-1 rounded-lg pl-6 lr-6 pb-3 pt-3 mb-2">{{ filteredItem.groupsTitle }}</div>
               
               <v-expansion-panels
                 :rounded="[10, 10]"
                 gap="8"
-                variant="accordion"
+                v-model="expanded"
                 static
-                multiple
-              >
-                <v-expansion-panel class="mt-0">
-                  <v-expansion-panel-title>Panel 1</v-expansion-panel-title>
+                multiple>
+
+                <v-expansion-panel 
+                  v-for="item in filteredItem.groups"
+                  :key="item.id"
+                  class="mt-0"
+                  expand
+                  >
+                  <v-expansion-panel-title>{{ item.title }}</v-expansion-panel-title>
                   <v-expansion-panel-text>
-                    Some content
+
+                    <v-checkbox
+                      v-for="checkbox in item.checkboxes"
+                      :label="checkbox"
+                      hide-details>
+                    </v-checkbox>
+
+                  </v-expansion-panel-text>
+                </v-expansion-panel>
+
+                <!-- 
+                <v-expansion-panel class="mt-0">
+                  <v-expansion-panel-title>Низкий уровень энергии</v-expansion-panel-title>
+                  <v-expansion-panel-text>
+                    <v-checkbox 
+                      v-for="item in checkboxItems1"
+                      :label="item"
+                      hide-details>
+                    </v-checkbox>
                   </v-expansion-panel-text>
                 </v-expansion-panel>
 
                 <v-expansion-panel class="mt-0">
-                  <v-expansion-panel-title>Panel 2</v-expansion-panel-title>
+                  <v-expansion-panel-title>Физическое недомогание</v-expansion-panel-title>
                   <v-expansion-panel-text>
-                    Some content
+                    <v-checkbox 
+                      v-for="item in checkboxItems2"
+                      :label="item"
+                      hide-details>
+                    </v-checkbox>
                   </v-expansion-panel-text>
                 </v-expansion-panel>
+                 -->
 
-                <v-expansion-panel class="mt-0">
-                  <v-expansion-panel-title>Panel 3</v-expansion-panel-title>
-                  <v-expansion-panel-text>
-                    Some content
-                  </v-expansion-panel-text>
-                </v-expansion-panel>
               </v-expansion-panels>
+
+
+
 
             </div>
             
@@ -410,13 +583,11 @@
   }
   .navbar {
     width: 300px;
+    height: 100%;
     flex-shrink: 0;
   }
   .content {
     flex-grow: 1
-  }
-  .content .title {
-
   }
   .prev-next-step-buttons {
     display: flex;
@@ -430,6 +601,10 @@
   :deep(.v-expansion-panel-title--active) {
     border-bottom: 1px solid lightgrey;
   }
+  :deep(.v-expansion-panel-text__wrapper) {
+    padding-left: 10px;
+  }
+
   
 
 
