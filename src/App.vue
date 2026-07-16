@@ -64,7 +64,7 @@
   }
 
   function validateLastName() {
-  // Валидация фамилии 3-50 символов
+    // Валидация фамилии 3-50 символов
     if (personalInfo.value.lastName.value.length >= 3 && personalInfo.value.lastName.value.length <= 50) {
       personalInfo.value.lastName.error = false
       personalInfo.value.lastName.errorText = ''
@@ -130,20 +130,109 @@
     }
   }
 
-  // ::v-deep usage as a combinator has been deprecated. Use :deep(<inner-selector>) instead of ::v-deep <inner-selector>.
+  
+  // Шаг анкетирования
+  const isCalculatorStep = ref(true)
+
+  function personalInfoSubmitNext() {
+    isCalculatorStep.value = true
+  }
+
+  const items = [
+    {
+      name: 'Item #1',
+      id: 1,
+    },
+    {
+      name: 'Item #2',
+      id: 2,
+    },
+    {
+      name: 'Item #3',
+      id: 3,
+    },
+  ]
 
 </script>
 
 <template>
   <v-responsive>
     <v-app>
-      <v-main>
+      
+
+      <v-main v-if="isCalculatorStep">
+        <v-container>
+          <div class="flex-container">
+            <!-- <div class="navbar elevation-2 rounded-lg pa-4"> -->
+              <v-card
+                class="navbar elevation-2 rounded-lg"
+                max-width="300">
+                <v-list
+                  :items="items"
+                  item-title="name"
+                  item-value="id">
+                </v-list>
+              </v-card>
+            <!-- </div> -->
+            <div class="content">
+              <div class="title elevation-1 rounded-lg pl-6 lr-6 pb-3 pt-3 mb-2">Отметьте какие из общих симптомов беспокоят вас больше всего в настоящее время.</div>
+              
+              <v-expansion-panels
+                :rounded="[10, 10]"
+                gap="8"
+                variant="accordion"
+                static
+                multiple
+              >
+                <v-expansion-panel class="mt-0">
+                  <v-expansion-panel-title>Panel 1</v-expansion-panel-title>
+                  <v-expansion-panel-text>
+                    Some content
+                  </v-expansion-panel-text>
+                </v-expansion-panel>
+
+                <v-expansion-panel class="mt-0">
+                  <v-expansion-panel-title>Panel 2</v-expansion-panel-title>
+                  <v-expansion-panel-text>
+                    Some content
+                  </v-expansion-panel-text>
+                </v-expansion-panel>
+
+                <v-expansion-panel class="mt-0">
+                  <v-expansion-panel-title>Panel 3</v-expansion-panel-title>
+                  <v-expansion-panel-text>
+                    Some content
+                  </v-expansion-panel-text>
+                </v-expansion-panel>
+              </v-expansion-panels>
+
+            </div>
+            
+          </div>
+
+          <div class="prev-next-step-buttons">
+            <v-btn 
+              type="button"
+              class="btn">
+              Назад
+            </v-btn>
+            <v-btn 
+              type="button"
+              class="btn">
+              Далее
+            </v-btn>
+          </div>
+        </v-container>
+      </v-main>
+
+      <v-main v-else="isCalculatorStep">
         <v-container>
 
           <h4>Подберите наилучшие варианты соли Шюсслера!</h4>
           <div class="elevation-2 rounded-lg pa-4">
             <p>Вы приступаете к автоматизированному подбору солей Шюсслера для проведения тканевой биохимической терапии. Вам понадобится 20-40 минут свободного времени и зеркало. Постарайтесь сосредоточиться на Вашей текущей проблеме. Отмечайте только те пункты, которые относятся к Вашему текущему состоянию. Не старайтесь собрать все симптомы, которые когда либо были у Вас, отмечайте только актуальные на сегодняшний день. Если Вы выбираете соли Шюсслера для конкретной проблемы пропускайте все блоки, кроме необходимого. По результатам теста Вам будет подобрана комбинация 3 основных солей Шюсслера, одной дополнительной и одной комплексной для длительного применения (если есть показания). Полученные рекомендации не являются назначениями. Любое заболевание требует консультации врача.</p>
-            <v-form @submit.prevent="personalInfoSubmit">
+            <!-- <v-form @submit.prevent="personalInfoSubmit"> -->
+              <v-form @submit.prevent="personalInfoSubmitNext">
 
               <div class="form-group">
                 <label id="firstName-label" for="firstName">Имя*</label>
@@ -273,6 +362,7 @@
           </div>
         </v-container>
       </v-main>
+
     </v-app>
   </v-responsive>
 </template>
@@ -304,14 +394,44 @@
   .form-group {
     margin-bottom: 8px;
   }
-  ::v-deep .v-text-field input {
+  :deep(.v-text-field input) {
     min-height: auto;
     height: 40px;
     padding: 8px 14px;
   }
-  ::v-deep .v-checkbox .v-selection-control {
+  :deep(.v-checkbox .v-selection-control) {
     min-height: 40px;
   }
+
+
+  .flex-container {
+    display: flex;
+    gap: 16px;
+  }
+  .navbar {
+    width: 300px;
+    flex-shrink: 0;
+  }
+  .content {
+    flex-grow: 1
+  }
+  .content .title {
+
+  }
+  .prev-next-step-buttons {
+    display: flex;
+    margin-top: 24px;
+    justify-content: space-between;
+  }
+  
+  :deep(.v-expansion-panel-title) {
+    padding: 12px 20px;
+  }
+  :deep(.v-expansion-panel-title--active) {
+    border-bottom: 1px solid lightgrey;
+  }
+  
+
 
 </style>
 
