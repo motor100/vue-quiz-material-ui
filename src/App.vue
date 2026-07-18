@@ -130,16 +130,23 @@
     }
   }
 
-  
+  // Шаг персональных данных
+  const isPersonalDataStep = ref(false)
+
   // Шаг анкетирования
-  const isCalculatorStep = ref(true)
+  const isCalculatorStep = ref(false)
+
+  // Шаг результатов
+  const isResultStep = ref(true)
 
   function personalInfoSubmitNext() {
     isCalculatorStep.value = true
   }
 
+  // Активный пункт меню. По умолчанию id = 1 (в примере формата данных)
   const activeId = ref(1)
 
+  // Пример формата данных
   const items = ref([
     {
       title: 'Общие симптомы',
@@ -237,28 +244,10 @@
     },
   ])
 
-  const checkboxItems1 = ref([
-    'Усталость по утрам',
-    'Весенняя усталость',
-    'Усталость постоянная',
-    'Перегруженность',
-    'Слабость',
-    'Медлительность',
-    'Высокие нагрузки',
-    'Перенапряжение',
-    'Джетлаг',
-  ])
 
-  const checkboxItems2 = ref([
-    'Процесс выздоровления после болезни',
-    'Послеоперационный период',
-    'Подготовка к оперативному лечению',
-    'Физическое истощение',
-    'Изнуряющая тяжелая болезнь',
-    'Частое употребление алкоголя',
-    'Хроническая интоксикация',
-  ])
-
+  /**
+   * Переключение панелей в зависимости от клика в левом меню
+   */
   const expanded = ref([])
 
   // Вычисляемое свойство filteredItem 
@@ -294,111 +283,9 @@
 <template>
   <v-responsive>
     <v-app>
-      
 
-      <v-main v-if="isCalculatorStep">
-        <v-container>
-          <div class="flex-container">
-            <!-- <div class="navbar elevation-2 rounded-lg pa-4"> -->
-              <v-card
-                class="navbar elevation-2 rounded-lg"
-                max-width="300">
-                <v-list>
-                  <!-- Статическая часть списка -->
-                  <v-list-item
-                    :link=true>
-                    Личная информация
-                  </v-list-item>
-                  <!-- Динамическая часть списка -->
-                  <v-list-item
-                    v-for="item in items"
-                    :key="item.id"
-                    :title="item.title"
-                    :link=true
-                    :active="item.active"
-                    @click=testClick(item)
-                  ></v-list-item>
-                </v-list>
-              </v-card>
-            <!-- </div> -->
-            <div class="content">
-
-              <div class="title elevation-1 rounded-lg pl-6 lr-6 pb-3 pt-3 mb-2">{{ filteredItem.groupsTitle }}</div>
-              
-              <v-expansion-panels
-                :rounded="[10, 10]"
-                gap="8"
-                v-model="expanded"
-                static
-                multiple>
-
-                <v-expansion-panel 
-                  v-for="item in filteredItem.groups"
-                  :key="item.id"
-                  class="mt-0"
-                  expand
-                  >
-                  <v-expansion-panel-title>{{ item.title }}</v-expansion-panel-title>
-                  <v-expansion-panel-text>
-
-                    <v-checkbox
-                      v-for="checkbox in item.checkboxes"
-                      :label="checkbox"
-                      hide-details>
-                    </v-checkbox>
-
-                  </v-expansion-panel-text>
-                </v-expansion-panel>
-
-                <!-- 
-                <v-expansion-panel class="mt-0">
-                  <v-expansion-panel-title>Низкий уровень энергии</v-expansion-panel-title>
-                  <v-expansion-panel-text>
-                    <v-checkbox 
-                      v-for="item in checkboxItems1"
-                      :label="item"
-                      hide-details>
-                    </v-checkbox>
-                  </v-expansion-panel-text>
-                </v-expansion-panel>
-
-                <v-expansion-panel class="mt-0">
-                  <v-expansion-panel-title>Физическое недомогание</v-expansion-panel-title>
-                  <v-expansion-panel-text>
-                    <v-checkbox 
-                      v-for="item in checkboxItems2"
-                      :label="item"
-                      hide-details>
-                    </v-checkbox>
-                  </v-expansion-panel-text>
-                </v-expansion-panel>
-                 -->
-
-              </v-expansion-panels>
-
-
-
-
-            </div>
-            
-          </div>
-
-          <div class="prev-next-step-buttons">
-            <v-btn 
-              type="button"
-              class="btn">
-              Назад
-            </v-btn>
-            <v-btn 
-              type="button"
-              class="btn">
-              Далее
-            </v-btn>
-          </div>
-        </v-container>
-      </v-main>
-
-      <v-main v-else="isCalculatorStep">
+      <!-- Шаг персональных данных -->
+      <v-main v-if="isPersonalDataStep">
         <v-container>
 
           <h4>Подберите наилучшие варианты соли Шюсслера!</h4>
@@ -536,11 +423,192 @@
         </v-container>
       </v-main>
 
+      <!-- Шаг анкетирования -->
+      <v-main v-if="isCalculatorStep">
+        <v-container>
+          <div class="flex-container">
+            <!-- <div class="navbar elevation-2 rounded-lg pa-4"> -->
+              <v-card
+                class="navbar elevation-2 rounded-lg"
+                max-width="300">
+                <v-list>
+                  <!-- Статическая часть списка -->
+                  <v-list-item
+                    :link=true>
+                    Личная информация
+                  </v-list-item>
+                  <!-- Динамическая часть списка -->
+                  <v-list-item
+                    v-for="item in items"
+                    :key="item.id"
+                    :title="item.title"
+                    :link=true
+                    :active="item.active"
+                    @click=testClick(item)
+                  ></v-list-item>
+                </v-list>
+              </v-card>
+            <!-- </div> -->
+            <div class="content">
+
+              <div class="title elevation-1 rounded-lg pl-6 lr-6 pb-3 pt-3 mb-2">{{ filteredItem.groupsTitle }}</div>
+              
+              <v-expansion-panels
+                :rounded="[10, 10]"
+                gap="8"
+                v-model="expanded"
+                static
+                multiple>
+
+                <v-expansion-panel 
+                  v-for="item in filteredItem.groups"
+                  :key="item.id"
+                  class="mt-0"
+                  >
+                  <v-expansion-panel-title>{{ item.title }}</v-expansion-panel-title>
+                  <v-expansion-panel-text>
+
+                    <v-checkbox
+                      v-for="checkbox in item.checkboxes"
+                      :label="checkbox"
+                      hide-details>
+                    </v-checkbox>
+
+                  </v-expansion-panel-text>
+                </v-expansion-panel>
+
+              </v-expansion-panels>
+
+            </div>
+            
+          </div>
+
+          <div class="group-buttons">
+            <v-btn 
+              type="button"
+              class="btn">
+              Назад
+            </v-btn>
+            <v-btn 
+              type="button"
+              class="btn">
+              Далее
+            </v-btn>
+          </div>
+
+        </v-container>
+      </v-main>
+
+      <!-- Шаг результатов -->
+      <v-main v-if="isResultStep">
+        <v-container>
+          <h2 class="text-center">Вы прошли тестирование в экспертной программе по подбору цветов Баха для тканевой биохимической терапии</h2>
+          <div class="disclaimer elevation-2 rounded-lg pa-4">
+            <svg viewBox="0 0 24 24" width="24" height="24" fill="red" class="icon">
+              <path d="M11 15h2v2h-2zm0-8h2v6h-2zm.99-5C6.47 2 2 6.48 2 12s4.47 10 9.99 10C17.52 22 22 17.52 22 12S17.52 2 11.99 2zM12 20c-4.42 0-8-3.58-8-8s3.58-8 8-8 8 3.58 8 8-3.58 8-8 8z"></path>
+            </svg>
+            <span class="text">Внимание! Автоматизированный тест не является назначением врача. В случае проблем со здоровьем следует обращаться за квалифицированной медицинской помощью.</span>
+          </div>
+          <div class="your-result-text">Ваш результат:</div>
+
+          <div class="product-item">
+            <div class="product-item__image rounded-lg">
+              <img src="/img/photo-salts-2-1.png" alt="">
+            </div>
+            <div class="product-item__description">
+              <div class="product-item__title">Соль: 2</div>
+              <p class="product-item__text">Регенерация Участвует в процессах роста и регенерации, отвечает за стабильность клеточных мембран.</p>
+            </div>
+          </div>
+
+          <div class="product-item">
+            <div class="product-item__image">
+              <img src="/img/photo-salts-25-1.jpg" alt="">
+            </div>
+            <div class="product-item__description">
+              <div class="product-item__title">Соль: 25</div>
+              <p class="product-item__text">Биоритмы Дополнительная соль для восстановления биоритмов.</p>
+            </div>
+          </div>
+
+          <v-expansion-panels
+            :rounded="[10, 10]"
+            class="mb-4"
+            static>
+            <v-expansion-panel class="mt-0">
+              <v-expansion-panel-title>Как принимать</v-expansion-panel-title>
+              <v-expansion-panel-text>
+
+                <!-- Постоянный обязательный текст -->
+                <div class="required-text">
+                  Принимайте назначенные соли за 30-40 минут до еды или через полтора часа после еды. Избегайте чистки зубов и курения за 20 минут до и после приема солей. Соли Шюсслера могут приниматься в сухом виде – таблетки рассасываются во рту или непосредственно под языком. Вы можете растворить  соли в небольшом количестве воды 120-150 мл ( соли в таблетках растворяются очень медленно)  и принимать небольшими глотками, удерживая каждый глоток во рту по несколько секунд.</br>
+                  Если назначено несколько солей, и Вам удобно принимать их одновременно, делайте перерыв 5-10 минут между разными солями. Допустимо растворять все соли в 1 л воды и принимать в течение дня как удобно.</br>
+                  Каждый флакон рассчитан на стандартный курс приема.</br>
+                  Соли в таблетках растворяются медленно. Если Вы предпочитаете растворять соли в воде – заказывайте соли в тритурациях (порошки), они быстро растворимы.  1 флакону по 200 таблеток эквивалентны 3 флакона тритураций по 20 грамм.</br> 
+                  Помните, что во время приема солей Шюсслера всегда необходимо принимать большое количество чистой воды (чай, кофе и другие жидкости не учитываются). Ориентировочный расчет чистой воды 25-30 мл на кг веса. Если Ваш врач ограничивает Вам прием жидкостей, то не превышайте дозу, назначенную доктором, но всегда отдавайте предпочтение чистой воде.</br>
+                  В рекомендациях дано оптимальное время приема каждой соли в соответствии с биоритмами организма и потребностью органов-мишеней к каждой соли. Вы можете пользоваться данным графиком или составить свой удобный для вас.</br> 
+                  Рекомендовано принимать соли 5 дней в неделю (с понедельника по пятницу) и делать 2 дня перерыва.</br> 
+                  Дополнительные комплексные соли рекомендовано принимать после окончания основного курса приема солей №№1-27 для пролонгирования и закрепления эффекта.</br>
+                  Кофе и другие антидоты, от которых воздерживаются при приеме гомеопатических препаратов не оказывают существенного влияния на терапию солями Шюсслера. Соли хорошо сочетаются с другими видами лечения, побочные эффекты не выявлены. Однако, могут быть кратковременные реакции ухудшения, которые проходят самостоятельно в течение 3-4 дней. Эффективность оценивается через 1-2 дня при острых ситуациях, через 4-6 недель при хронических. После окончания курса эффект постепенно нарастает в течение 2-3 месяцев.</br>
+                  Помните, что тестирование не заменяет консультации врача, носит ознакомительный характер и не является медицинским заключением. Любое заболевание требует консультации специалиста. Искусственный интеллект не может заменить врача. Соли не являются БАД и не являются лекарством. Это диетическое питание.
+                </div>
+
+                <!-- Описание каждого из продуктов. Вставляется из БД в зависимости от результата -->
+                <p class="product-text">
+                  Соль Шюсслера №2 Calcium phosphoricum D6 (Фосфат кальция) принимать по 5 таблеток утром. 
+                  Возможная реакция в первые дни приеме-боли в области суставов, проходят самостоятельно. Соль Шюсслера №2 для оптимального эффекта  требует длительного приема от 3 до 12 месяцев.
+                </p>
+
+                <p class="product-text">
+                  Соль Шюсслера №25  Aurum chloratum natronatum D12 ( Хлорид золота) – принимать по 2 таблетки утром, в полдень и рано вечером, если есть нарушения сна - принимать дополнительно 2 таблетки перед сном. 
+                  Возможные реакции во время приема не зафиксированы.
+                </p>
+
+                <p class="product-text">
+                  Vita (Работоспособность)- после окончания основного курса, перейти на прием комплексной соли по 5 таблеток утром.
+                </p>
+
+              </v-expansion-panel-text>
+            </v-expansion-panel>
+          </v-expansion-panels>
+
+          <div class="elevation-2 rounded-lg pa-4 bg-white">
+            Рецепт на подобранные соли Шюсслера направлен в аптеку NaturaPharma на ваши контактные данные
+
+Сайт аптеки: www.naturapharama.ru
+
+Телефон: +7 (495) 927-49-28
+
+Email: info@naturapharma.ru
+          </div>
+
+          <div class="group-buttons">
+            <v-btn 
+              type="button"
+              class="btn">
+              Рассчитать заново
+            </v-btn>
+            <v-btn 
+              type="button"
+              class="btn">
+              Печать
+            </v-btn>
+          </div>
+
+          
+        </v-container>
+      </v-main>
+     
     </v-app>
   </v-responsive>
 </template>
 
 <style scoped>
+  :deep(.v-theme--light) {
+    background-color: #faf9ff;
+  }
+  
+
   .v-main {
     margin-top: 30px;
     margin-bottom: 30px;
@@ -554,7 +622,7 @@
     font-family: inherit;
     font-weight: 500;
     line-height: 1.75;
-    width: 130px;
+    min-width: 130px;
     height: 43px;
     border: 0px;
     padding: 8px 22px;
@@ -589,7 +657,7 @@
   .content {
     flex-grow: 1
   }
-  .prev-next-step-buttons {
+  .group-buttons {
     display: flex;
     margin-top: 24px;
     justify-content: space-between;
@@ -605,7 +673,41 @@
     padding-left: 10px;
   }
 
-  
+  .disclaimer {
+    display: flex;
+    margin-bottom: 16px;
+    border: 1px solid red;
+    font-size: 18px;
+    gap: 16px;
+  }
+  .disclaimer .icon {
+    flex-shrink: 0;
+  }
+  .disclaimer .text {
+    color: #5f2120;
+  }
+  .your-result-text {
+    margin-bottom: 16px;
+    font-size: 20px;
+  }
+  .product-item {
+    margin-bottom: 16px;
+  }
+  .product-item .product-item__image {
+    margin-bottom: 16px;
+    background-color: #fff;
+  }
+  .product-item .product-item__image img {
+    display: block;
+    width: 150px;
+    margin: 0 auto;
+  }
+  .product-item .product-item__description {
+    font-size: 18px;
+  }
+  .product-item .product-item__description .product-item__text {
+    margin: 0 0 8px 0;
+  }
 
 
 </style>
