@@ -275,6 +275,10 @@
     expanded.value = Object.keys(filteredItem.value.groups)
   }
 
+  function windowPrint() {
+    window.print()
+  }
+
   // Открываю панели
   expanded.value = Object.keys(filteredItem.value.groups)
 
@@ -288,8 +292,8 @@
       <v-main v-if="isPersonalDataStep">
         <v-container>
 
-          <h4>Подберите наилучшие варианты соли Шюсслера!</h4>
-          <div class="elevation-2 rounded-lg pa-4">
+          <h4 class="main-title">Подберите наилучшие варианты соли Шюсслера!</h4>
+          <div class="elevation-2 rounded-lg pa-4 bg-white">
             <p>Вы приступаете к автоматизированному подбору солей Шюсслера для проведения тканевой биохимической терапии. Вам понадобится 20-40 минут свободного времени и зеркало. Постарайтесь сосредоточиться на Вашей текущей проблеме. Отмечайте только те пункты, которые относятся к Вашему текущему состоянию. Не старайтесь собрать все симптомы, которые когда либо были у Вас, отмечайте только актуальные на сегодняшний день. Если Вы выбираете соли Шюсслера для конкретной проблемы пропускайте все блоки, кроме необходимого. По результатам теста Вам будет подобрана комбинация 3 основных солей Шюсслера, одной дополнительной и одной комплексной для длительного применения (если есть показания). Полученные рекомендации не являются назначениями. Любое заболевание требует консультации врача.</p>
             <!-- <v-form @submit.prevent="personalInfoSubmit"> -->
               <v-form @submit.prevent="personalInfoSubmitNext">
@@ -339,7 +343,8 @@
                   required>
                 </v-text-field>
               </div>
-
+              
+              <!-- 
               <div class="form-group">
                 <label id="phone-label" for="phone">Номер телефона</label>
                 <v-mask-input 
@@ -353,6 +358,7 @@
                   autocomlete="on">
                 </v-mask-input>
               </div>
+               -->
 
               <div class="form-group">
                 <label id="dateOfBirth-label" for="dateOfBirth">Дата рождения*</label>
@@ -428,9 +434,7 @@
         <v-container>
           <div class="flex-container">
             <!-- <div class="navbar elevation-2 rounded-lg pa-4"> -->
-              <v-card
-                class="navbar elevation-2 rounded-lg"
-                max-width="300">
+              <v-card class="navbar elevation-2 rounded-lg hide-on-mobile">
                 <v-list>
                   <!-- Статическая часть списка -->
                   <v-list-item
@@ -572,29 +576,26 @@
             </v-expansion-panel>
           </v-expansion-panels>
 
-          <div class="elevation-2 rounded-lg pa-4 bg-white">
-            Рецепт на подобранные соли Шюсслера направлен в аптеку NaturaPharma на ваши контактные данные
-
-Сайт аптеки: www.naturapharama.ru
-
-Телефон: +7 (495) 927-49-28
-
-Email: info@naturapharma.ru
+          <div class="rounded-lg ps-4 pt-1 pb-1 bg-white">
+            <p>Рецепт на подобранные Цветы Баха направлен в аптеку NaturaPharma на ваши контактные данные</p>
+            <p>Сайт аптеки: {{ appConfig.apiEndpoint }}</p>
+            <p>Телефон: {{ appConfig.phone }}</p>
+            <p>Email: {{ appConfig.email }}</p>
           </div>
 
           <div class="group-buttons">
             <v-btn 
-              type="button"
-              class="btn">
+              :href=appConfig.completeAgainUrl
+              class="btn"
+              >
               Рассчитать заново
             </v-btn>
             <v-btn 
-              type="button"
-              class="btn">
+              class="btn"
+              @click="windowPrint">
               Печать
             </v-btn>
           </div>
-
           
         </v-container>
       </v-main>
@@ -604,15 +605,26 @@ Email: info@naturapharma.ru
 </template>
 
 <style scoped>
+/*
   :deep(.v-theme--light) {
     background-color: #faf9ff;
   }
-  
+  */
+  :deep(.v-application__wrap) {
+    background-color: #faf9ff;
+  } 
 
   .v-main {
     margin-top: 30px;
     margin-bottom: 30px;
   }
+  /*
+  @media only screen and (max-width : 576px) {
+    .v-container {
+      padding: 0;
+    }
+  }
+    */
   .color-red {
     color: red;
   }
@@ -642,6 +654,13 @@ Email: info@naturapharma.ru
   }
   :deep(.v-checkbox .v-selection-control) {
     min-height: 40px;
+  }
+  .main-title {
+    padding-left: 16px;
+    padding-right: 16px;
+    font-weight: 400;
+    line-height: 1.235;
+    font-size: 26px;
   }
 
 
@@ -707,6 +726,12 @@ Email: info@naturapharma.ru
   }
   .product-item .product-item__description .product-item__text {
     margin: 0 0 8px 0;
+  }
+
+  @media (max-width: 768px) {
+    .hide-on-mobile {
+      display: none;
+    }
   }
 
 
