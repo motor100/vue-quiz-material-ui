@@ -3,6 +3,8 @@
   //import { useRules } from 'vuetify/labs/rules'
   import { VMaskInput } from 'vuetify/labs/VMaskInput'
   import { appConfig } from './config'
+  import {getZodiacSign} from "./utils/_getZodiacSign";
+  import {getAge} from "./utils/_getAge";
 
   //const rules = useRules()
 
@@ -24,7 +26,7 @@
 
 
   // Персональные данные
-  const personalInfo = ref({
+  const personalData = ref({
     firstName: {
       value: '',
       error: false,
@@ -54,23 +56,23 @@
 
   function validateFirstName() {
     // Валидация имени 3-50 символов
-    if (personalInfo.value.firstName.value.length >= 3 && personalInfo.value.firstName.value.length <= 50) {
-      personalInfo.value.firstName.error = false
-      personalInfo.value.firstName.errorText = ''
+    if (personalData.value.firstName.value.length >= 3 && personalData.value.firstName.value.length <= 50) {
+      personalData.value.firstName.error = false
+      personalData.value.firstName.errorText = ''
     } else {
-      personalInfo.value.firstName.error = true
-      personalInfo.value.firstName.errorText = 'Поле должно быть не менее 3 и не более 50 символов'
+      personalData.value.firstName.error = true
+      personalData.value.firstName.errorText = 'Поле должно быть не менее 3 и не более 50 символов'
     }
   }
 
   function validateLastName() {
     // Валидация фамилии 3-50 символов
-    if (personalInfo.value.lastName.value.length >= 3 && personalInfo.value.lastName.value.length <= 50) {
-      personalInfo.value.lastName.error = false
-      personalInfo.value.lastName.errorText = ''
+    if (personalData.value.lastName.value.length >= 3 && personalData.value.lastName.value.length <= 50) {
+      personalData.value.lastName.error = false
+      personalData.value.lastName.errorText = ''
     } else {
-      personalInfo.value.lastName.error = true
-      personalInfo.value.lastName.errorText = 'Поле должно быть не менее 3 и не более 50 символов'
+      personalData.value.lastName.error = true
+      personalData.value.lastName.errorText = 'Поле должно быть не менее 3 и не более 50 символов'
     }
   }
 
@@ -79,29 +81,29 @@
 
     const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
-    if (personalInfo.value.email.value.length >= 5 && 
-      personalInfo.value.email.value.length <= 100 && 
-      emailPattern.test(personalInfo.value.email.value)) {
-      personalInfo.value.email.error = false
-      personalInfo.value.email.errorText = ''
+    if (personalData.value.email.value.length >= 5 && 
+      personalData.value.email.value.length <= 100 && 
+      emailPattern.test(personalData.value.email.value)) {
+      personalData.value.email.error = false
+      personalData.value.email.errorText = ''
     } else {
-      personalInfo.value.email.error = true
-      personalInfo.value.email.errorText = 'Поле должно быть не менее 5 и не более 100 символов'
+      personalData.value.email.error = true
+      personalData.value.email.errorText = 'Поле должно быть не менее 5 и не более 100 символов'
     }
   }
 
   function validateDateOfBirth() {
     // Валидация даты рождения
-    if (personalInfo.value.dateOfBirth.value.length == 10) {
-      personalInfo.value.dateOfBirth.error = false
-      personalInfo.value.dateOfBirth.errorText = ''
+    if (personalData.value.dateOfBirth.value.length == 10) {
+      personalData.value.dateOfBirth.error = false
+      personalData.value.dateOfBirth.errorText = ''
     } else {
-      personalInfo.value.dateOfBirth.error = true
-      personalInfo.value.dateOfBirth.errorText = 'Поле обязательно для заполнения'
+      personalData.value.dateOfBirth.error = true
+      personalData.value.dateOfBirth.errorText = 'Поле обязательно для заполнения'
     }
   }
 
-  function personalInfoSubmit() {
+  function personalDataSubmit() {
 
     validateFirstName()
 
@@ -112,35 +114,38 @@
     validateDateOfBirth()
 
     // Валидация номера телефона меньше или равно 19 символов
-    if (personalInfo.value.phone.value.length <= 19) {
-      personalInfo.value.phone.error = false
-      personalInfo.value.phone.errorText = ''
+    if (personalData.value.phone.value.length <= 19) {
+      personalData.value.phone.error = false
+      personalData.value.phone.errorText = ''
     } else {
-      personalInfo.value.phone.error = true
-      personalInfo.value.phone.errorText = 'Поле должно быть 19 символов'
+      personalData.value.phone.error = true
+      personalData.value.phone.errorText = 'Поле должно быть 19 символов'
     }
 
     // Проверяю на ошибки
-    if (!personalInfo.value.firstName.error && 
-        !personalInfo.value.lastName.error && 
-        !personalInfo.value.email.error && 
-        !personalInfo.value.phone.error && 
-        !personalInfo.value.dateOfBirth.error) {
+    if (!personalData.value.firstName.error && 
+        !personalData.value.lastName.error && 
+        !personalData.value.email.error && 
+        !personalData.value.phone.error && 
+        !personalData.value.dateOfBirth.error) {
       console.log('ок')
     }
   }
 
   // Шаг персональных данных
-  const isPersonalDataStep = ref(false)
+  const isPersonalDataStep = ref(true)
 
   // Шаг анкетирования
   const isCalculatorStep = ref(false)
 
   // Шаг результатов
-  const isResultStep = ref(true)
+  const isResultStep = ref(false)
 
-  function personalInfoSubmitNext() {
-    isCalculatorStep.value = true
+  function personalDataSubmitNext() {
+    //isCalculatorStep.value = true
+    //console.log(getZodiacSign(new Date(personalData.value.dateOfBirth.value)))
+    const age = getAge(personalData.value.dateOfBirth.value)
+    console.log(age)
   }
 
   // Активный пункт меню. По умолчанию id = 1 (в примере формата данных)
@@ -275,9 +280,13 @@
     expanded.value = Object.keys(filteredItem.value.groups)
   }
 
+  // Открытие окна печати
   function windowPrint() {
     window.print()
   }
+
+  // Получение знака зодиака
+  //const zodiacSign = getZodiacSign(new Date(personalData.value.dateOfBirth.value))
 
   // Открываю панели
   expanded.value = Object.keys(filteredItem.value.groups)
@@ -295,8 +304,8 @@
           <h4 class="main-title">Подберите наилучшие варианты соли Шюсслера!</h4>
           <div class="elevation-2 rounded-lg pa-4 bg-white">
             <p>Вы приступаете к автоматизированному подбору солей Шюсслера для проведения тканевой биохимической терапии. Вам понадобится 20-40 минут свободного времени и зеркало. Постарайтесь сосредоточиться на Вашей текущей проблеме. Отмечайте только те пункты, которые относятся к Вашему текущему состоянию. Не старайтесь собрать все симптомы, которые когда либо были у Вас, отмечайте только актуальные на сегодняшний день. Если Вы выбираете соли Шюсслера для конкретной проблемы пропускайте все блоки, кроме необходимого. По результатам теста Вам будет подобрана комбинация 3 основных солей Шюсслера, одной дополнительной и одной комплексной для длительного применения (если есть показания). Полученные рекомендации не являются назначениями. Любое заболевание требует консультации врача.</p>
-            <!-- <v-form @submit.prevent="personalInfoSubmit"> -->
-              <v-form @submit.prevent="personalInfoSubmitNext">
+            <!-- <v-form @submit.prevent="personalDataSubmit"> -->
+              <v-form @submit.prevent="personalDataSubmitNext">
 
               <div class="form-group">
                 <label id="firstName-label" for="firstName">Имя*</label>
@@ -305,9 +314,9 @@
                   variant="outlined"
                   color="green"
                   @input="validateFirstName"
-                  v-model="personalInfo.firstName.value"
-                  :error="personalInfo.firstName.error"
-                  :error-messages="personalInfo.firstName.errorText"
+                  v-model="personalData.firstName.value"
+                  :error="personalData.firstName.error"
+                  :error-messages="personalData.firstName.errorText"
                   autocomplete="on"
                   required>
                 </v-text-field>
@@ -320,9 +329,9 @@
                   variant="outlined"
                   color="green"
                   @input="validateLastName"
-                  v-model="personalInfo.lastName.value"
-                  :error="personalInfo.lastName.error"
-                  :error-messages="personalInfo.lastName.errorText"
+                  v-model="personalData.lastName.value"
+                  :error="personalData.lastName.error"
+                  :error-messages="personalData.lastName.errorText"
                   autocomlete="on"
                   required>
                 </v-text-field>
@@ -336,9 +345,9 @@
                   color="green"
                   type="email"
                   @input="validateEmail"
-                  v-model="personalInfo.email.value"
-                  :error="personalInfo.email.error"
-                  :error-messages="personalInfo.email.errorText"
+                  v-model="personalData.email.value"
+                  :error="personalData.email.error"
+                  :error-messages="personalData.email.errorText"
                   autocomlete="on"
                   required>
                 </v-text-field>
@@ -352,9 +361,9 @@
                   variant="outlined"
                   color="green"
                   mask="+7 (###) ###-##-###" 
-                  v-model="personalInfo.phone.value"
-                  :error="personalInfo.phone.error"
-                  :error-messages="personalInfo.phone.errorText"
+                  v-model="personalData.phone.value"
+                  :error="personalData.phone.error"
+                  :error-messages="personalData.phone.errorText"
                   autocomlete="on">
                 </v-mask-input>
               </div>
@@ -368,9 +377,9 @@
                   color="green"
                   type="date" 
                   @input="validateDateOfBirth"
-                  v-model="personalInfo.dateOfBirth.value"
-                  :error="personalInfo.dateOfBirth.error"
-                  :error-messages="personalInfo.dateOfBirth.errorText"
+                  v-model="personalData.dateOfBirth.value"
+                  :error="personalData.dateOfBirth.error"
+                  :error-messages="personalData.dateOfBirth.errorText"
                   autocomlete="on"
                   required>
                 </v-text-field>
