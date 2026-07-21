@@ -1,28 +1,50 @@
 <script setup>
-  import { reactive, ref, computed } from 'vue';
+  import { reactive, ref, computed, onMounted } from 'vue';
   //import { useRules } from 'vuetify/labs/rules'
   import { VMaskInput } from 'vuetify/labs/VMaskInput'
   import { appConfig } from './config'
   import {getZodiacSign} from "./utils/_getZodiacSign";
   import {getAge} from "./utils/_getAge";
+  // import { useFetch } from '@vueuse/core';
 
   //const rules = useRules()
 
-  /*
+  // Валидация полей
   const nameRule = [
     v => !!v || 'Это поле обязательно для заполнения',
-    v => v.length <= 3 || 'Поле должно быть не менее 3 символов'
+    v => v.length <= 3 || 'Поле должно быть не менее 3 и не более 50 символов'
   ]
-  
+
   const emailRule = [
+    v => !!v || 'Это поле обязательно для заполнения',
     v => !v || /^\w+([.-]?\w+)*@\w+([.-]?\w+)*(\.\w{2,3})+$/.test(v) || 'Это поле обязательно для заполнения'
   ]
-  */
+
+  const dateOfBirthRule = [
+    v => !!v || 'Это поле обязательно для заполнения',
+    v => v.length == 10 || 'Error'
+  ]
 
   const checkboxRule = [
-    v => !!v || 'Это поле обязательно для заполнения',
+    v => !!v || 'Error',
   ]
-  
+
+
+  // Шаг персональных данных
+  const isPersonalDataStep = ref(true)
+
+  // Шаг вопросов
+  const isQuestionStep = ref(false)
+
+  // Шаг результатов
+  const isResultStep = ref(false)
+
+  // Чекбоксы персональных данных и политики конфиденциальности
+  const personalDataIsAccepted = ref(false)
+  const privacyPolicyIsAccepted = ref(false)
+
+  // Disabled для кнопки перехода от шага персональных данных к шагу калькулятора
+  const isPersonalDataStepNextBtnDisabled = ref(true)
 
 
   // Персональные данные
@@ -103,7 +125,88 @@
     }
   }
 
-  function personalDataSubmit() {
+  /*
+  const url = appConfig.apiEndpoint + '/wp-json/myplugin/v1/posts/'
+
+  const { isFetching, error, data } = useFetch(url)
+
+  console.log(data)
+  */
+  
+  // Запрос на сервер проверка номера заказа
+  /*
+  function fetchOrderData() {
+    const url = appConfig.apiEndpoint + '/wp-json/myplugin/v1/posts/';
+  
+    try {
+      // 1. Wait for the initial network response
+      const response = await fetch(url);
+      
+      // 2. Check if the HTTP status code is successful (200-299)
+      if (!response.ok) {
+        throw new Error(`HTTP error! Status: ${response.status}`);
+      }
+      
+      // 3. Wait for the body text to parse into JSON
+      const data = await response.json();
+      console.log(data);
+      
+    } catch (error) {
+      // 4. Catch network failures or parsing issues
+      console.error('Fetch operation failed:', error);
+    }
+  }
+    */
+
+  // Переменные для запрос на сервер проверка номера заказа
+  const orderData = ref(null)
+  const orderLoading = ref(true)
+  const orderError = ref(null)
+
+  // Запрос на сервер проверка номера заказа
+  const fetchOrderData = async () => {
+
+    const urlParams = new URLSearchParams(window.location.search);
+    const orderId = urlParams.get('d');
+
+    if (orderId) {
+
+      const url = appConfig.apiEndpoint + '/wp-json/myplugin/v1/posts/' + orderId;
+
+      try {
+        const response = await fetch(url)
+        
+        // Check if the response status is ok (status 200-299)
+        if (!response.ok) {
+          throw new Error(`HTTP error! status: ${response.status}`)
+        }
+        
+        // Parse the JSON payload and update state
+        orderData.value = await response.json()
+
+        if (orderData.value.status) {
+          isPersonalDataStepNextBtnDisabled.value = false
+        }
+
+      } catch (err) {
+        // Capture network errors or manual errors thrown above
+        orderError.value = err.message
+        console.log(orderError.value)
+      } finally {
+        // Ensure loading indicator is turned off
+        orderLoading.value = false
+      }
+    }
+  }
+
+  // Trigger the API request when the component mounts
+  onMounted(() => {
+    fetchOrderData()
+  })
+
+
+  // Переход от шага персональных данных к шагу калькулятора
+  function personalDataStepNext() {
 
     validateFirstName()
 
@@ -127,25 +230,56 @@
         !personalData.value.lastName.error && 
         !personalData.value.email.error && 
         !personalData.value.phone.error && 
-        !personalData.value.dateOfBirth.error) {
-      console.log('ок')
+        !personalData.value.dateOfBirth.error &&
+        orderData.value.status) {
+      
+        // Скрытие шага персональных данных
+        isPersonalDataStep.value = false
+
+        // Показывание шага калькулятора
+        isQuestionStep.value = true
+
+        // Обновление чекбоксов персональных данных и политики конфиденциальности
+        personalDataIsAccepted.value = true
+        privacyPolicyIsAccepted.value = true
+
     }
   }
 
-  // Шаг персональных данных
-  const isPersonalDataStep = ref(true)
+  // Переход от шага калькулятора к шагу персональных данных
+  function questionStepBack() {
+    // Показывание шага персональных данных
+    isPersonalDataStep.value = true
 
-  // Шаг анкетирования
-  const isCalculatorStep = ref(false)
+    // Скрытие шага калькулятора
+    isQuestionStep.value = false
+  }
 
-  // Шаг результатов
-  const isResultStep = ref(false)
+  // Переход от шага калькулятора к шагу персональных данных
+  function questionStepNext() {
+    // Скрытие шага персональных данных
+    isPersonalDataStep.value = false
+
+    // Скрытие шага калькулятора
+    isQuestionStep.value = false
+
+    // Показывание шага результатов
+    isResultStep.value = true
+  }
+
 
   function personalDataSubmitNext() {
-    //isCalculatorStep.value = true
+    // Скрытие шага персональных данных
+    isPersonalDataStep.value = false
+
+    // Показывание шага калькулятора
+    isQuestionStep.value = true
+
+    // Получение знака зодиака
     //console.log(getZodiacSign(new Date(personalData.value.dateOfBirth.value)))
-    const age = getAge(personalData.value.dateOfBirth.value)
-    console.log(age)
+
+    // Получение возраста
+    // const age = getAge(personalData.value.dateOfBirth.value)
   }
 
   // Активный пункт меню. По умолчанию id = 1 (в примере формата данных)
@@ -259,11 +393,11 @@
   // Один отфильтрованный объект items по свойству active: true
   // Возвращает объект
   const filteredItem = computed(() => {
-    // return items.value.filter((t) => t.active)
     return items.value.find((t) => t.active)
   })
 
-  function testClick(item) {
+  // Переключение вкладок вопросов
+  function questionList(item) {
 
     // Убираю active с прошлого элемента
     items.value.forEach(function(i) {
@@ -288,7 +422,7 @@
   // Получение знака зодиака
   //const zodiacSign = getZodiacSign(new Date(personalData.value.dateOfBirth.value))
 
-  // Открываю панели
+  // Открытие первой панели
   expanded.value = Object.keys(filteredItem.value.groups)
 
 </script>
@@ -304,8 +438,8 @@
           <h4 class="main-title">Подберите наилучшие варианты соли Шюсслера!</h4>
           <div class="elevation-2 rounded-lg pa-4 bg-white">
             <p>Вы приступаете к автоматизированному подбору солей Шюсслера для проведения тканевой биохимической терапии. Вам понадобится 20-40 минут свободного времени и зеркало. Постарайтесь сосредоточиться на Вашей текущей проблеме. Отмечайте только те пункты, которые относятся к Вашему текущему состоянию. Не старайтесь собрать все симптомы, которые когда либо были у Вас, отмечайте только актуальные на сегодняшний день. Если Вы выбираете соли Шюсслера для конкретной проблемы пропускайте все блоки, кроме необходимого. По результатам теста Вам будет подобрана комбинация 3 основных солей Шюсслера, одной дополнительной и одной комплексной для длительного применения (если есть показания). Полученные рекомендации не являются назначениями. Любое заболевание требует консультации врача.</p>
-            <!-- <v-form @submit.prevent="personalDataSubmit"> -->
-              <v-form @submit.prevent="personalDataSubmitNext">
+
+            <v-form @submit.prevent="personalDataStepNext">
 
               <div class="form-group">
                 <label id="firstName-label" for="firstName">Имя*</label>
@@ -380,12 +514,17 @@
                   v-model="personalData.dateOfBirth.value"
                   :error="personalData.dateOfBirth.error"
                   :error-messages="personalData.dateOfBirth.errorText"
+                  :rules="dateOfBirthRule"
                   autocomlete="on"
                   required>
                 </v-text-field>
               </div>
 
-              <v-checkbox hide-details required :rules="checkboxRule">
+              <v-checkbox 
+                hide-details 
+                required 
+                :rules="checkboxRule"
+                v-model="privacyPolicyIsAccepted">
                 <template v-slot:label>
                   <div >
                     Ознакомлен с 
@@ -405,7 +544,11 @@
                 </template>
               </v-checkbox>
 
-              <v-checkbox hide-details required :rules="checkboxRule">
+              <v-checkbox 
+                hide-details 
+                required 
+                :rules="checkboxRule"
+                v-model="personalDataIsAccepted">
                 <template v-slot:label>
                   <div>
                     Согласен на 
@@ -428,7 +571,8 @@
               <div class="d-flex justify-end mt-3">
                 <v-btn 
                   type="submit"
-                  class="btn">
+                  class="btn"
+                  :disabled="isPersonalDataStepNextBtnDisabled">
                   Продолжить
                 </v-btn>
               </div>
@@ -438,8 +582,8 @@
         </v-container>
       </v-main>
 
-      <!-- Шаг анкетирования -->
-      <v-main v-if="isCalculatorStep">
+      <!-- Шаг вопросов -->
+      <v-main v-if="isQuestionStep">
         <v-container>
           <div class="flex-container">
             <!-- <div class="navbar elevation-2 rounded-lg pa-4"> -->
@@ -447,7 +591,8 @@
                 <v-list>
                   <!-- Статическая часть списка -->
                   <v-list-item
-                    :link=true>
+                    :link=true
+                    @click="questionStepBack">
                     Личная информация
                   </v-list-item>
                   <!-- Динамическая часть списка -->
@@ -457,14 +602,14 @@
                     :title="item.title"
                     :link=true
                     :active="item.active"
-                    @click=testClick(item)
+                    @click=questionList(item)
                   ></v-list-item>
                 </v-list>
               </v-card>
             <!-- </div> -->
             <div class="content">
 
-              <div class="title elevation-1 rounded-lg pl-6 lr-6 pb-3 pt-3 mb-2">{{ filteredItem.groupsTitle }}</div>
+              <div class="title elevation-1 rounded-lg bg-white pl-6 lr-6 pb-3 pt-3 mb-2">{{ filteredItem.groupsTitle }}</div>
               
               <v-expansion-panels
                 :rounded="[10, 10]"
@@ -499,12 +644,14 @@
           <div class="group-buttons">
             <v-btn 
               type="button"
-              class="btn">
+              class="btn"
+              @click="questionStepBack">
               Назад
             </v-btn>
             <v-btn 
               type="button"
-              class="btn">
+              class="btn"
+              @click="questionStepNext">
               Далее
             </v-btn>
           </div>
@@ -597,7 +744,7 @@
               :href=appConfig.completeAgainUrl
               class="btn"
               >
-              Рассчитать заново
+              Пройти снова
             </v-btn>
             <v-btn 
               class="btn"
@@ -651,6 +798,10 @@
     box-shadow: none;
     border-radius: 5px;
     background: linear-gradient(90deg, rgb(48, 38, 85) 0%, rgb(137, 80, 112) 100%);
+    color: white;
+  }
+  .btn:disabled {
+    opacity: 0.7;
     color: white;
   }
   .form-group {
