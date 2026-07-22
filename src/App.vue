@@ -1,289 +1,77 @@
 <script setup>
   import { reactive, ref, computed, onMounted } from 'vue';
-  //import { useRules } from 'vuetify/labs/rules'
-  import { VMaskInput } from 'vuetify/labs/VMaskInput'
   import { appConfig } from './config'
-  import {getZodiacSign} from "./utils/_getZodiacSign";
-  import {getAge} from "./utils/_getAge";
-  // import { useFetch } from '@vueuse/core';
-
-  //const rules = useRules()
-
-  // Валидация полей
-  const nameRule = [
-    v => !!v || 'Это поле обязательно для заполнения',
-    v => v.length <= 3 || 'Поле должно быть не менее 3 и не более 50 символов'
-  ]
-
-  const emailRule = [
-    v => !!v || 'Это поле обязательно для заполнения',
-    v => !v || /^\w+([.-]?\w+)*@\w+([.-]?\w+)*(\.\w{2,3})+$/.test(v) || 'Это поле обязательно для заполнения'
-  ]
-
-  const dateOfBirthRule = [
-    v => !!v || 'Это поле обязательно для заполнения',
-    v => v.length == 10 || 'Error'
-  ]
-
-  const checkboxRule = [
-    v => !!v || 'Error',
-  ]
+  //import {getZodiacSign} from "./utils/_getZodiacSign";
+  //import {getAge} from "./utils/_getAge";
 
 
-  // Шаг персональных данных
-  const isPersonalDataStep = ref(true)
+  // Ссылка на Vuetify форму для вызова валидации
+  const formRef = ref(null);
 
-  // Шаг вопросов
-  const isQuestionStep = ref(false)
+  // Управление шагами через одно состояние: 'personal' | 'questions' | 'results'
+  const currentStep = ref('personal');
 
-  // Шаг результатов
-  const isResultStep = ref(false)
-
-  // Чекбоксы персональных данных и политики конфиденциальности
+  // Чекбоксы согласий персональных данных и политики конфиденциальности
   const personalDataIsAccepted = ref(false)
   const privacyPolicyIsAccepted = ref(false)
 
-  // Disabled для кнопки перехода от шага персональных данных к шагу калькулятора
-  const isPersonalDataStepNextBtnDisabled = ref(true)
-
-
-  // Персональные данные
-  const personalData = ref({
-    firstName: {
-      value: '',
-      error: false,
-      errorText: ''
-    },
-    lastName: {
-      value: '',
-      error: false,
-      errorText: ''
-    },
-    email: {
-      value: '',
-      error: false,
-      errorText: ''
-    },
-    phone: {
-      value: '',
-      error: false,
-      errorText: ''
-    },
-    dateOfBirth: {
-      value: '',
-      error: false,
-      errorText: ''
-    }
-  })
-
-  function validateFirstName() {
-    // Валидация имени 3-50 символов
-    if (personalData.value.firstName.value.length >= 3 && personalData.value.firstName.value.length <= 50) {
-      personalData.value.firstName.error = false
-      personalData.value.firstName.errorText = ''
-    } else {
-      personalData.value.firstName.error = true
-      personalData.value.firstName.errorText = 'Поле должно быть не менее 3 и не более 50 символов'
-    }
-  }
-
-  function validateLastName() {
-    // Валидация фамилии 3-50 символов
-    if (personalData.value.lastName.value.length >= 3 && personalData.value.lastName.value.length <= 50) {
-      personalData.value.lastName.error = false
-      personalData.value.lastName.errorText = ''
-    } else {
-      personalData.value.lastName.error = true
-      personalData.value.lastName.errorText = 'Поле должно быть не менее 3 и не более 50 символов'
-    }
-  }
-
-  function validateEmail() {
-    // Валидация email 5-100 символов
-
-    const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-
-    if (personalData.value.email.value.length >= 5 && 
-      personalData.value.email.value.length <= 100 && 
-      emailPattern.test(personalData.value.email.value)) {
-      personalData.value.email.error = false
-      personalData.value.email.errorText = ''
-    } else {
-      personalData.value.email.error = true
-      personalData.value.email.errorText = 'Поле должно быть не менее 5 и не более 100 символов'
-    }
-  }
-
-  function validateDateOfBirth() {
-    // Валидация даты рождения
-    if (personalData.value.dateOfBirth.value.length == 10) {
-      personalData.value.dateOfBirth.error = false
-      personalData.value.dateOfBirth.errorText = ''
-    } else {
-      personalData.value.dateOfBirth.error = true
-      personalData.value.dateOfBirth.errorText = 'Поле обязательно для заполнения'
-    }
-  }
-
-  /*
-  const url = appConfig.apiEndpoint + '/wp-json/myplugin/v1/posts/'
-
-  const { isFetching, error, data } = useFetch(url)
-
-  console.log(data)
-  */
-  
-  // Запрос на сервер проверка номера заказа
-  /*
-  function fetchOrderData() {
-    const url = appConfig.apiEndpoint + '/wp-json/myplugin/v1/posts/';
-  
-    try {
-      // 1. Wait for the initial network response
-      const response = await fetch(url);
-      
-      // 2. Check if the HTTP status code is successful (200-299)
-      if (!response.ok) {
-        throw new Error(`HTTP error! Status: ${response.status}`);
-      }
-      
-      // 3. Wait for the body text to parse into JSON
-      const data = await response.json();
-      console.log(data);
-      
-    } catch (error) {
-      // 4. Catch network failures or parsing issues
-      console.error('Fetch operation failed:', error);
-    }
-  }
-    */
-
-  // Переменные для запрос на сервер проверка номера заказа
+  // Данные API заказа
   const orderData = ref(null)
   const orderLoading = ref(true)
   const orderError = ref(null)
 
-  // Запрос на сервер проверка номера заказа
-  const fetchOrderData = async () => {
+  // Хранилище для выбранных симптомов
+  // Ключом будет имя симптома, значением — true/false
+  const selectedSymptoms = reactive({});
 
-    const urlParams = new URLSearchParams(window.location.search);
-    const orderId = urlParams.get('d');
+  // Активный ID вкладки вопросов (управляет вкладками декларативно)
+  const activeTabId = ref(1);
 
-    if (orderId) {
+  // Массив открытых панелей-аккордеонов
+  const expanded = ref([]);
 
-      const url = appConfig.apiEndpoint + '/wp-json/myplugin/v1/posts/' + orderId;
+  // Правила валидации Vuetify
+  const rules = {
+    required: v => !!v || 'Это поле обязательно для заполнения',
+    name: v => (v && v.length >= 3 && v.length <= 50) || 'Поле должно быть от 3 до 50 символов',
+    email: v => !v || /^\w+([.-]?\w+)*@\w+([.-]?\w+)*(\.\w{2,3})+$/.test(v) || 'Введен некорректный E-mail',
+    phone: v => !v || v.length <= 19 || 'Поле должно быть не более 19 символов',
+    checkbox: v => !!v || 'Необходимо ваше согласие'
+  };
 
-      try {
-        const response = await fetch(url)
-        
-        // Check if the response status is ok (status 200-299)
-        if (!response.ok) {
-          throw new Error(`HTTP error! status: ${response.status}`)
-        }
-        
-        // Parse the JSON payload and update state
-        orderData.value = await response.json()
-
-        if (orderData.value.status) {
-          isPersonalDataStepNextBtnDisabled.value = false
-        }
-
-      } catch (err) {
-        // Capture network errors or manual errors thrown above
-        orderError.value = err.message
-        console.log(orderError.value)
-      } finally {
-        // Ensure loading indicator is turned off
-        orderLoading.value = false
-      }
-    }
-  }
-
-  // Trigger the API request when the component mounts
-  onMounted(() => {
-    fetchOrderData()
+  // Персональные данные
+  const form = reactive({
+    firstName: '',
+    lastName: '',
+    email: '',
+    phone: '',
+    dateOfBirth: ''
   })
 
+  // Клик по кнопке "Продолжить" на шаге персональных данных
+  async function personalDataStepNext() {
+    if (!formRef.value) return;
 
-  // Переход от шага персональных данных к шагу калькулятора
-  function personalDataStepNext() {
+    // Триггерим встроенную валидацию Vuetify для всех полей формы
+    const { valid } = await formRef.value.validate();
 
-    validateFirstName()
-
-    validateLastName()
-
-    validateEmail()
-
-    validateDateOfBirth()
-
-    // Валидация номера телефона меньше или равно 19 символов
-    if (personalData.value.phone.value.length <= 19) {
-      personalData.value.phone.error = false
-      personalData.value.phone.errorText = ''
-    } else {
-      personalData.value.phone.error = true
-      personalData.value.phone.errorText = 'Поле должно быть 19 символов'
-    }
-
-    // Проверяю на ошибки
-    if (!personalData.value.firstName.error && 
-        !personalData.value.lastName.error && 
-        !personalData.value.email.error && 
-        !personalData.value.phone.error && 
-        !personalData.value.dateOfBirth.error &&
-        orderData.value.status) {
+    if (valid && orderData.value?.status) {
+      currentStep.value = 'questions';
       
-        // Скрытие шага персональных данных
-        isPersonalDataStep.value = false
-
-        // Показывание шага калькулятора
-        isQuestionStep.value = true
-
-        // Обновление чекбоксов персональных данных и политики конфиденциальности
-        personalDataIsAccepted.value = true
-        privacyPolicyIsAccepted.value = true
-
+      // Пример использования утилит (раскомментируйте при необходимости)
+      // const zodiac = getZodiacSign(new Date(form.dateOfBirth));
+      // const age = getAge(form.dateOfBirth);
     }
   }
 
-  // Переход от шага калькулятора к шагу персональных данных
+  // Переключение шагов навигации
   function questionStepBack() {
-    // Показывание шага персональных данных
-    isPersonalDataStep.value = true
-
-    // Скрытие шага калькулятора
-    isQuestionStep.value = false
+    currentStep.value = 'personal';
   }
 
-  // Переход от шага калькулятора к шагу персональных данных
   function questionStepNext() {
-    // Скрытие шага персональных данных
-    isPersonalDataStep.value = false
-
-    // Скрытие шага калькулятора
-    isQuestionStep.value = false
-
-    // Показывание шага результатов
-    isResultStep.value = true
+    currentStep.value = 'results';
   }
-
-
-  function personalDataSubmitNext() {
-    // Скрытие шага персональных данных
-    isPersonalDataStep.value = false
-
-    // Показывание шага калькулятора
-    isQuestionStep.value = true
-
-    // Получение знака зодиака
-    //console.log(getZodiacSign(new Date(personalData.value.dateOfBirth.value)))
-
-    // Получение возраста
-    // const age = getAge(personalData.value.dateOfBirth.value)
-  }
-
-  // Активный пункт меню. По умолчанию id = 1 (в примере формата данных)
-  const activeId = ref(1)
 
   // Пример формата данных
   const items = ref([
@@ -383,47 +171,71 @@
     },
   ])
 
-
-  /**
-   * Переключение панелей в зависимости от клика в левом меню
-   */
-  const expanded = ref([])
-
-  // Вычисляемое свойство filteredItem 
-  // Один отфильтрованный объект items по свойству active: true
-  // Возвращает объект
+  // Вычисляем активный элемент на основе activeTabId (убрали мутацию свойства .active)
   const filteredItem = computed(() => {
-    return items.value.find((t) => t.active)
-  })
+    return items.value.find((t) => t.id === activeTabId.value) || items.value[0];
+  });
 
-  // Переключение вкладок вопросов
+  // Динамическое управление блокировкой кнопки "Продолжить" на шаге персональных данных
+  const isPersonalDataStepNextBtnDisabled = computed(() => {
+
+    // Кнопка заблокирована, если данные заказа еще загружаются или пришла ошибка
+    if (orderLoading.value || orderError.value || !orderData.value?.status) {
+      return true;
+    }
+
+    // Кнопка заблокирована, если обязательные поля формы пусты или чекбоксы не отмечены
+    const hasEmptyFields = !form.firstName || !form.lastName || !form.email || !form.dateOfBirth;
+    const hasNoAgreements = !personalDataIsAccepted.value || !privacyPolicyIsAccepted.value;
+    
+    return hasEmptyFields || hasNoAgreements;
+  });
+
+  // Запрос на сервер для проверки номера заказа
+  const fetchOrderData = async () => {
+    const urlParams = new URLSearchParams(window.location.search);
+    const orderId = urlParams.get('d');
+    
+    if (!orderId) {
+      orderLoading.value = false;
+      return;
+    }
+
+    const url = `${appConfig.apiEndpoint}/wp-json/myplugin/v1/posts/${orderId}`;
+
+    try {
+      const response = await fetch(url);
+      if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+      
+      orderData.value = await response.json();
+    } catch (err) {
+      orderError.value = err.message;
+      console.error(orderError.value);
+    } finally {
+      orderLoading.value = false;
+    }
+  };
+
+  // Инициализация при монтировании компонента
+  onMounted(async () => {
+
+    await fetchOrderData();
+
+    if (filteredItem.value) {
+      expanded.value = Object.keys(filteredItem.value.groups);
+    }
+  });
+
+  // Переключение вкладок вопросов (чистая функция без side-эффектов)
   function questionList(item) {
-
-    // Убираю active с прошлого элемента
-    items.value.forEach(function(i) {
-      i.active = false
-    });
-
-    // Добавляю active к текущему элементу
-    item.active = true
-
-    // Обновляю переменную activeId
-    activeId.value = item.id
-
-    // Обновляю массив с открытыми панелями
-    expanded.value = Object.keys(filteredItem.value.groups)
+    activeTabId.value = item.id;
+    expanded.value = Object.keys(item.groups).map(Number);
   }
 
-  // Открытие окна печати
+  // Печать страницы
   function windowPrint() {
     window.print()
   }
-
-  // Получение знака зодиака
-  //const zodiacSign = getZodiacSign(new Date(personalData.value.dateOfBirth.value))
-
-  // Открытие первой панели
-  expanded.value = Object.keys(filteredItem.value.groups)
 
 </script>
 
@@ -432,14 +244,14 @@
     <v-app>
 
       <!-- Шаг персональных данных -->
-      <v-main v-if="isPersonalDataStep">
+      <v-main v-if="currentStep === 'personal'">
         <v-container>
 
-          <h4 class="main-title">Подберите наилучшие варианты соли Шюсслера!</h4>
+          <h4 class="main-title">Подберите наилучшие варианты цветы !</h4>
           <div class="elevation-2 rounded-lg pa-4 bg-white">
-            <p>Вы приступаете к автоматизированному подбору солей Шюсслера для проведения тканевой биохимической терапии. Вам понадобится 20-40 минут свободного времени и зеркало. Постарайтесь сосредоточиться на Вашей текущей проблеме. Отмечайте только те пункты, которые относятся к Вашему текущему состоянию. Не старайтесь собрать все симптомы, которые когда либо были у Вас, отмечайте только актуальные на сегодняшний день. Если Вы выбираете соли Шюсслера для конкретной проблемы пропускайте все блоки, кроме необходимого. По результатам теста Вам будет подобрана комбинация 3 основных солей Шюсслера, одной дополнительной и одной комплексной для длительного применения (если есть показания). Полученные рекомендации не являются назначениями. Любое заболевание требует консультации врача.</p>
+            <p>Вы приступаете к автоматизированному подбору солей  для проведения тканевой биохимической терапии. Вам понадобится 20-40 минут свободного времени и зеркало. Постарайтесь сосредоточиться на Вашей текущей проблеме. Отмечайте только те пункты, которые относятся к Вашему текущему состоянию. Не старайтесь собрать все симптомы, которые когда либо были у Вас, отмечайте только актуальные на сегодняшний день. Если Вы выбираете цветы  для конкретной проблемы пропускайте все блоки, кроме необходимого. По результатам теста Вам будет подобрана комбинация 3 основных солей , одной дополнительной и одной комплексной для длительного применения (если есть показания). Полученные рекомендации не являются назначениями. Любое заболевание требует консультации врача.</p>
 
-            <v-form @submit.prevent="personalDataStepNext">
+            <v-form ref="formRef" @submit.prevent="personalDataStepNext">
 
               <div class="form-group">
                 <label id="firstName-label" for="firstName">Имя*</label>
@@ -447,10 +259,8 @@
                   id="firstName"
                   variant="outlined"
                   color="green"
-                  @input="validateFirstName"
-                  v-model="personalData.firstName.value"
-                  :error="personalData.firstName.error"
-                  :error-messages="personalData.firstName.errorText"
+                  v-model="form.firstName"
+                  :rules="[rules.required, rules.name]"
                   autocomplete="on"
                   required>
                 </v-text-field>
@@ -462,11 +272,9 @@
                   id="lastName"
                   variant="outlined"
                   color="green"
-                  @input="validateLastName"
-                  v-model="personalData.lastName.value"
-                  :error="personalData.lastName.error"
-                  :error-messages="personalData.lastName.errorText"
-                  autocomlete="on"
+                  v-model="form.lastName"
+                  :rules="[rules.required, rules.name]"
+                  autocomplete="on"
                   required>
                 </v-text-field>
               </div>
@@ -478,30 +286,12 @@
                   variant="outlined"
                   color="green"
                   type="email"
-                  @input="validateEmail"
-                  v-model="personalData.email.value"
-                  :error="personalData.email.error"
-                  :error-messages="personalData.email.errorText"
-                  autocomlete="on"
+                  v-model="form.email"
+                  :rules="[rules.required, rules.email]"
+                  autocomplete="on"
                   required>
                 </v-text-field>
               </div>
-              
-              <!-- 
-              <div class="form-group">
-                <label id="phone-label" for="phone">Номер телефона</label>
-                <v-mask-input 
-                  id="phone"
-                  variant="outlined"
-                  color="green"
-                  mask="+7 (###) ###-##-###" 
-                  v-model="personalData.phone.value"
-                  :error="personalData.phone.error"
-                  :error-messages="personalData.phone.errorText"
-                  autocomlete="on">
-                </v-mask-input>
-              </div>
-               -->
 
               <div class="form-group">
                 <label id="dateOfBirth-label" for="dateOfBirth">Дата рождения*</label>
@@ -510,12 +300,9 @@
                   variant="outlined"
                   color="green"
                   type="date" 
-                  @input="validateDateOfBirth"
-                  v-model="personalData.dateOfBirth.value"
-                  :error="personalData.dateOfBirth.error"
-                  :error-messages="personalData.dateOfBirth.errorText"
-                  :rules="dateOfBirthRule"
-                  autocomlete="on"
+                  v-model="form.dateOfBirth"
+                  :rules="[rules.required]"
+                  autocomplete="on"
                   required>
                 </v-text-field>
               </div>
@@ -523,7 +310,7 @@
               <v-checkbox 
                 hide-details 
                 required 
-                :rules="checkboxRule"
+                :rules="[rules.checkbox]"
                 v-model="privacyPolicyIsAccepted">
                 <template v-slot:label>
                   <div >
@@ -531,7 +318,7 @@
                     <v-tooltip location="bottom">
                       <template v-slot:activator="{ props }">
                         <a
-                          v-bind:href=appConfig.privacyPolicyUrl
+                          :href="appConfig.privacyPolicyUrl"
                           target="_blank"
                           v-bind="props"
                           @click.stop>
@@ -547,7 +334,7 @@
               <v-checkbox 
                 hide-details 
                 required 
-                :rules="checkboxRule"
+                :rules="[rules.checkbox]"
                 v-model="personalDataIsAccepted">
                 <template v-slot:label>
                   <div>
@@ -555,7 +342,7 @@
                     <v-tooltip location="bottom">
                       <template v-slot:activator="{ props }">
                         <a
-                          v-bind:href=appConfig.personalDataAcceptanceUrl
+                          :href="appConfig.personalDataAcceptanceUrl"
                           target="_blank"
                           v-bind="props"
                           @click.stop>
@@ -583,10 +370,9 @@
       </v-main>
 
       <!-- Шаг вопросов -->
-      <v-main v-if="isQuestionStep">
+      <v-main v-if="currentStep === 'questions'">
         <v-container>
-          <div class="flex-container">
-            <!-- <div class="navbar elevation-2 rounded-lg pa-4"> -->
+          <div class="d-flex ga-4">
               <v-card class="navbar elevation-2 rounded-lg hide-on-mobile">
                 <v-list>
                   <!-- Статическая часть списка -->
@@ -601,18 +387,18 @@
                     :key="item.id"
                     :title="item.title"
                     :link=true
-                    :active="item.active"
+                    :active="item.id === activeTabId"
                     @click=questionList(item)
                   ></v-list-item>
                 </v-list>
               </v-card>
             <!-- </div> -->
-            <div class="content">
+            <div class="content flex-grow-1">
 
               <div class="title elevation-1 rounded-lg bg-white pl-6 lr-6 pb-3 pt-3 mb-2">{{ filteredItem.groupsTitle }}</div>
               
               <v-expansion-panels
-                :rounded="[10, 10]"
+                rounded="lg"
                 gap="8"
                 v-model="expanded"
                 static
@@ -629,6 +415,7 @@
                     <v-checkbox
                       v-for="checkbox in item.checkboxes"
                       :label="checkbox"
+                      v-model="selectedSymptoms[checkbox]"
                       hide-details>
                     </v-checkbox>
 
@@ -641,7 +428,7 @@
             
           </div>
 
-          <div class="group-buttons">
+          <div class="group-buttons d-flex justify-space-between mt-6">
             <v-btn 
               type="button"
               class="btn"
@@ -660,19 +447,19 @@
       </v-main>
 
       <!-- Шаг результатов -->
-      <v-main v-if="isResultStep">
+      <v-main v-if="currentStep === 'results'">
         <v-container>
           <h2 class="text-center">Вы прошли тестирование в экспертной программе по подбору цветов Баха для тканевой биохимической терапии</h2>
           <div class="disclaimer elevation-2 rounded-lg pa-4">
-            <svg viewBox="0 0 24 24" width="24" height="24" fill="red" class="icon">
+            <svg viewBox="0 0 24 24" width="24" height="24" fill="red" class="flex-shrink-0">
               <path d="M11 15h2v2h-2zm0-8h2v6h-2zm.99-5C6.47 2 2 6.48 2 12s4.47 10 9.99 10C17.52 22 22 17.52 22 12S17.52 2 11.99 2zM12 20c-4.42 0-8-3.58-8-8s3.58-8 8-8 8 3.58 8 8-3.58 8-8 8z"></path>
             </svg>
             <span class="text">Внимание! Автоматизированный тест не является назначением врача. В случае проблем со здоровьем следует обращаться за квалифицированной медицинской помощью.</span>
           </div>
           <div class="your-result-text">Ваш результат:</div>
 
-          <div class="product-item">
-            <div class="product-item__image rounded-lg">
+          <div class="product-item mb-4">
+            <div class="product-item__image rounded-lg mb-4 bg-white">
               <img src="/img/photo-salts-2-1.png" alt="">
             </div>
             <div class="product-item__description">
@@ -681,8 +468,8 @@
             </div>
           </div>
 
-          <div class="product-item">
-            <div class="product-item__image">
+          <div class="product-item mb-4">
+            <div class="product-item__image rounded-lg mb-4 bg-white">
               <img src="/img/photo-salts-25-1.jpg" alt="">
             </div>
             <div class="product-item__description">
@@ -692,7 +479,7 @@
           </div>
 
           <v-expansion-panels
-            :rounded="[10, 10]"
+            rounded="lg"
             class="mb-4"
             static>
             <v-expansion-panel class="mt-0">
@@ -701,31 +488,31 @@
 
                 <!-- Постоянный обязательный текст -->
                 <div class="required-text">
-                  Принимайте назначенные соли за 30-40 минут до еды или через полтора часа после еды. Избегайте чистки зубов и курения за 20 минут до и после приема солей. Соли Шюсслера могут приниматься в сухом виде – таблетки рассасываются во рту или непосредственно под языком. Вы можете растворить  соли в небольшом количестве воды 120-150 мл ( соли в таблетках растворяются очень медленно)  и принимать небольшими глотками, удерживая каждый глоток во рту по несколько секунд.</br>
-                  Если назначено несколько солей, и Вам удобно принимать их одновременно, делайте перерыв 5-10 минут между разными солями. Допустимо растворять все соли в 1 л воды и принимать в течение дня как удобно.</br>
+                  Принимайте назначенные цветы за 30-40 минут до еды или через полтора часа после еды. Избегайте чистки зубов и курения за 20 минут до и после приема цветов. цветы  могут приниматься в сухом виде – таблетки рассасываются во рту или непосредственно под языком. Вы можете растворить  цветы в небольшом количестве воды 120-150 мл ( цветы в таблетках растворяются очень медленно)  и принимать небольшими глотками, удерживая каждый глоток во рту по несколько секунд.</br>
+                  Если назначено несколько цветов, и Вам удобно принимать их одновременно, делайте перерыв 5-10 минут между разными цветами. Допустимо растворять все цветы в 1 л воды и принимать в течение дня как удобно.</br>
                   Каждый флакон рассчитан на стандартный курс приема.</br>
-                  Соли в таблетках растворяются медленно. Если Вы предпочитаете растворять соли в воде – заказывайте соли в тритурациях (порошки), они быстро растворимы.  1 флакону по 200 таблеток эквивалентны 3 флакона тритураций по 20 грамм.</br> 
-                  Помните, что во время приема солей Шюсслера всегда необходимо принимать большое количество чистой воды (чай, кофе и другие жидкости не учитываются). Ориентировочный расчет чистой воды 25-30 мл на кг веса. Если Ваш врач ограничивает Вам прием жидкостей, то не превышайте дозу, назначенную доктором, но всегда отдавайте предпочтение чистой воде.</br>
-                  В рекомендациях дано оптимальное время приема каждой соли в соответствии с биоритмами организма и потребностью органов-мишеней к каждой соли. Вы можете пользоваться данным графиком или составить свой удобный для вас.</br> 
-                  Рекомендовано принимать соли 5 дней в неделю (с понедельника по пятницу) и делать 2 дня перерыва.</br> 
-                  Дополнительные комплексные соли рекомендовано принимать после окончания основного курса приема солей №№1-27 для пролонгирования и закрепления эффекта.</br>
-                  Кофе и другие антидоты, от которых воздерживаются при приеме гомеопатических препаратов не оказывают существенного влияния на терапию солями Шюсслера. Соли хорошо сочетаются с другими видами лечения, побочные эффекты не выявлены. Однако, могут быть кратковременные реакции ухудшения, которые проходят самостоятельно в течение 3-4 дней. Эффективность оценивается через 1-2 дня при острых ситуациях, через 4-6 недель при хронических. После окончания курса эффект постепенно нарастает в течение 2-3 месяцев.</br>
-                  Помните, что тестирование не заменяет консультации врача, носит ознакомительный характер и не является медицинским заключением. Любое заболевание требует консультации специалиста. Искусственный интеллект не может заменить врача. Соли не являются БАД и не являются лекарством. Это диетическое питание.
+                  цветы в таблетках растворяются медленно. Если Вы предпочитаете растворять цветы в воде – заказывайте цветы в тритурациях (порошки), они быстро растворимы.  1 флакону по 200 таблеток эквивалентны 3 флакона тритураций по 20 грамм.</br> 
+                  Помните, что во время приема цветов  всегда необходимо принимать большое количество чистой воды (чай, кофе и другие жидкости не учитываются). Ориентировочный расчет чистой воды 25-30 мл на кг веса. Если Ваш врач ограничивает Вам прием жидкостей, то не превышайте дозу, назначенную доктором, но всегда отдавайте предпочтение чистой воде.</br>
+                  В рекомендациях дано оптимальное время приема каждой цветы в соответствии с биоритмами организма и потребностью органов-мишеней к каждой цветы. Вы можете пользоваться данным графиком или составить свой удобный для вас.</br> 
+                  Рекомендовано принимать цветы 5 дней в неделю (с понедельника по пятницу) и делать 2 дня перерыва.</br> 
+                  Дополнительные комплексные цветы рекомендовано принимать после окончания основного курса приема цветов №№1-27 для пролонгирования и закрепления эффекта.</br>
+                  Кофе и другие антидоты, от которых воздерживаются при приеме гомеопатических препаратов не оказывают существенного влияния на терапию цветами. цветы хорошо сочетаются с другими видами лечения, побочные эффекты не выявлены. Однако, могут быть кратковременные реакции ухудшения, которые проходят самостоятельно в течение 3-4 дней. Эффективность оценивается через 1-2 дня при острых ситуациях, через 4-6 недель при хронических. После окончания курса эффект постепенно нарастает в течение 2-3 месяцев.</br>
+                  Помните, что тестирование не заменяет консультации врача, носит ознакомительный характер и не является медицинским заключением. Любое заболевание требует консультации специалиста. Искусственный интеллект не может заменить врача. цветы не являются БАД и не являются лекарством. Это диетическое питание.
                 </div>
 
                 <!-- Описание каждого из продуктов. Вставляется из БД в зависимости от результата -->
                 <p class="product-text">
-                  Соль Шюсслера №2 Calcium phosphoricum D6 (Фосфат кальция) принимать по 5 таблеток утром. 
-                  Возможная реакция в первые дни приеме-боли в области суставов, проходят самостоятельно. Соль Шюсслера №2 для оптимального эффекта  требует длительного приема от 3 до 12 месяцев.
+                  Соль  №2 Calcium phosphoricum D6 (Фосфат кальция) принимать по 5 таблеток утром. 
+                  Возможная реакция в первые дни приеме-боли в области суставов, проходят самостоятельно. Соль  №2 для оптимального эффекта  требует длительного приема от 3 до 12 месяцев.
                 </p>
 
                 <p class="product-text">
-                  Соль Шюсслера №25  Aurum chloratum natronatum D12 ( Хлорид золота) – принимать по 2 таблетки утром, в полдень и рано вечером, если есть нарушения сна - принимать дополнительно 2 таблетки перед сном. 
+                  Соль  №25  Aurum chloratum natronatum D12 ( Хлорид золота) – принимать по 2 таблетки утром, в полдень и рано вечером, если есть нарушения сна - принимать дополнительно 2 таблетки перед сном. 
                   Возможные реакции во время приема не зафиксированы.
                 </p>
 
                 <p class="product-text">
-                  Vita (Работоспособность)- после окончания основного курса, перейти на прием комплексной соли по 5 таблеток утром.
+                  Vita (Работоспособность)- после окончания основного курса, перейти на прием комплексной цветы по 5 таблеток утром.
                 </p>
 
               </v-expansion-panel-text>
@@ -739,9 +526,9 @@
             <p>Email: {{ appConfig.email }}</p>
           </div>
 
-          <div class="group-buttons">
+          <div class="group-buttons d-flex justify-space-between mt-6">
             <v-btn 
-              :href=appConfig.completeAgainUrl
+              :href="appConfig.completeAgainUrl"
               class="btn"
               >
               Пройти снова
@@ -761,11 +548,6 @@
 </template>
 
 <style scoped>
-/*
-  :deep(.v-theme--light) {
-    background-color: #faf9ff;
-  }
-  */
   :deep(.v-application__wrap) {
     background-color: #faf9ff;
   } 
@@ -774,29 +556,11 @@
     margin-top: 30px;
     margin-bottom: 30px;
   }
-  /*
-  @media only screen and (max-width : 576px) {
-    .v-container {
-      padding: 0;
-    }
-  }
-    */
   .color-red {
     color: red;
   }
   .btn {
-    outline: 0px;
-    margin: 0px;
-    font-family: inherit;
-    font-weight: 500;
-    line-height: 1.75;
-    min-width: 130px;
     height: 43px;
-    border: 0px;
-    padding: 8px 22px;
-    font-size: 0.9375rem;
-    box-shadow: none;
-    border-radius: 5px;
     background: linear-gradient(90deg, rgb(48, 38, 85) 0%, rgb(137, 80, 112) 100%);
     color: white;
   }
@@ -823,23 +587,10 @@
     font-size: 26px;
   }
 
-
-  .flex-container {
-    display: flex;
-    gap: 16px;
-  }
   .navbar {
     width: 300px;
     height: 100%;
     flex-shrink: 0;
-  }
-  .content {
-    flex-grow: 1
-  }
-  .group-buttons {
-    display: flex;
-    margin-top: 24px;
-    justify-content: space-between;
   }
   
   :deep(.v-expansion-panel-title) {
@@ -859,22 +610,12 @@
     font-size: 18px;
     gap: 16px;
   }
-  .disclaimer .icon {
-    flex-shrink: 0;
-  }
   .disclaimer .text {
     color: #5f2120;
   }
   .your-result-text {
     margin-bottom: 16px;
     font-size: 20px;
-  }
-  .product-item {
-    margin-bottom: 16px;
-  }
-  .product-item .product-item__image {
-    margin-bottom: 16px;
-    background-color: #fff;
   }
   .product-item .product-item__image img {
     display: block;
@@ -887,13 +628,12 @@
   .product-item .product-item__description .product-item__text {
     margin: 0 0 8px 0;
   }
-
+  
   @media (max-width: 768px) {
     .hide-on-mobile {
       display: none;
     }
   }
-
 
 </style>
 
