@@ -2,7 +2,7 @@ import { createApp } from 'vue'
 import App from './App.vue'
 
 // Vuetify
-import '@mdi/font/css/materialdesignicons.css' // Стили для чекбокса
+import '@mdi/font/css/materialdesignicons.css' // Стили для чекбоксов
 import 'vuetify/styles'
 import { createVuetify } from 'vuetify'
 // import './styles/settings.scss'

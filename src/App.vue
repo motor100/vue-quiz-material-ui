@@ -24,6 +24,35 @@
   // Ключом будет имя симптома, значением — true/false
   const selectedSymptoms = reactive({});
 
+  const selectedSymptomsStructured = computed(() => {
+    return items.value
+      .map(item => {
+        // Фильтруем группы (секции) внутри каждой вкладки
+        const sections = item.groups
+          .map(group => {
+            // Собираем только те чекбоксы, которые есть в selectedSymptoms и равны true
+            const checked = group.checkboxes.filter(checkbox => !!selectedSymptoms[checkbox]);
+            
+            return {
+              title: group.title,
+              checked: checked
+            };
+          })
+          // Исключаем секции, где не был выбран ни один чекбокс
+          .filter(section => section.checked.length > 0);
+
+        return {
+          title: item.title,
+          sections: sections
+        };
+      })
+      // Исключаем вкладки меню, в которых суммарно ничего не выбрали
+      .filter(item => item.sections.length > 0);
+  });
+
+  // Объект результатов для передачи на сервер
+  const results = ref({})
+
   // Активный ID вкладки вопросов (управляет вкладками декларативно)
   const activeTabId = ref(1);
 
@@ -40,7 +69,7 @@
   };
 
   // Персональные данные
-  const form = reactive({
+  const personalData = reactive({
     firstName: '',
     lastName: '',
     email: '',
@@ -59,18 +88,88 @@
       currentStep.value = 'questions';
       
       // Пример использования утилит (раскомментируйте при необходимости)
-      // const zodiac = getZodiacSign(new Date(form.dateOfBirth));
-      // const age = getAge(form.dateOfBirth);
+      // const zodiac = getZodiacSign(new Date(personalData.dateOfBirth));
+      // const age = getAge(personalData.dateOfBirth);
     }
   }
 
+  // Данные API результатов
+  const resultsData = ref(null)
+  const resultsLoading = ref(true)
+  const resultsError = ref(null)
+
+  // Запрос на сервер для проверки номера заказа
+  const fetchResultsData = async () => {
+
+    const url = `${appConfig.apiEndpoint}/wp-json/myplugin/v1/authors-fbq/${orderId}?token=${orderData.value.token}`;
+
+    try {
+      const response = await fetch(url, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+
+        // Отправляем данные в теле запроса в виде JSON
+        body: JSON.stringify(results.value)
+      });
+
+      if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+      
+      resultsData.value = await response.json();
+    } catch (err) {
+      resultsError.value = err.message;
+      console.error(resultsError.value);
+    } finally {
+      resultsLoading.value = false;
+    }
+
+  };
+
   // Переключение шагов навигации
+  // Шаг вопросов назад к шагу персональных данных
   function questionStepBack() {
     currentStep.value = 'personal';
   }
 
+  // Шаг вопросов вперед к шагу результатов
   function questionStepNext() {
     currentStep.value = 'results';
+
+    // Сборка объекта с результатами для отправки на сервер
+    results.value.token = orderData.value.token // На всякий случай, если WP не нашел токен в параметрах URL
+    results.value.customer = { ...personalData } // деструктуризация и разрыв реактивной связи
+    results.value.checkboxes = JSON.parse(JSON.stringify(selectedSymptomsStructured.value)) // передаю JS объект вместо proxy
+     // тут будут подобранные БАДы
+    results.value.results = [
+      { // описание соли из таблицы products
+        'salt': '2', // номер или название соли
+        'group': '1', // вкладка products строка group 
+        'img': '', // вкладка products строка img
+        'description': '', // вкладка products строка description. Проверить символы переноса строк.
+        'long_description': '', // вкладка products строка long_description. Проверить символы переноса строк.
+        'composition': '', // вкладка products строка composition
+        'prescription_14': '', // вкладка products строка prescription_14. Проверить символы переноса строк.
+        'prescription_8': '', // вкладка products строка prescription_8. Проверить символы переноса строк.
+        'prescription_2': '', // вкладка products строка prescription_2. Проверить символы переноса строк.
+        'prescription_0': '', // вкладка products строка prescription_0. Проверить символы переноса строк.
+      },
+      {
+        'salt': '9',
+        'group': '2',
+        'img': '', // вкладка products строка img
+        'description': '', // вкладка products строка description. Проверить символы переноса строк.
+        'long_description': '', // вкладка products строка long_description. Проверить символы переноса строк.
+        'composition': '', // вкладка products строка composition
+        'prescription_14': '', // вкладка products строка prescription_14. Проверить символы переноса строк.
+        'prescription_8': '', // вкладка products строка prescription_8. Проверить символы переноса строк.
+        'prescription_2': '', // вкладка products строка prescription_2. Проверить символы переноса строк.
+        'prescription_0': '', // вкладка products строка prescription_0. Проверить символы переноса строк.
+      },
+    ]
+
+    // Отправка данных на сервер
+    fetchResultsData()
   }
 
   // Пример формата данных
@@ -129,9 +228,9 @@
           id: 104,
           title: 'Характеристика особенностей морфотипа лица',
           checkboxes: [
-            'Чекбокс 1',
-            'Чекбокс 2',
             'Чекбокс 3',
+            'Чекбокс 4',
+            'Чекбокс 5',
           ]
         },
         {
@@ -154,24 +253,24 @@
           id: 106,
           title: 'Страхи',
           checkboxes: [
-            'Чекбокс 1',
-            'Чекбокс 2',
+            'Чекбокс 6',
+            'Чекбокс 7',
           ]
         },
         {
           id: 107,
           title: 'Настроение',
           checkboxes: [
-            'Чекбокс 1',
-            'Чекбокс 2',
-            'Чекбокс 3',
+            'Чекбокс 8',
+            'Чекбокс 9',
+            'Чекбокс 10',
           ]
         }
       ]
     },
   ])
 
-  // Вычисляем активный элемент на основе activeTabId (убрали мутацию свойства .active)
+  // Вычисляем активный элемент на основе activeTabId
   const filteredItem = computed(() => {
     return items.value.find((t) => t.id === activeTabId.value) || items.value[0];
   });
@@ -185,16 +284,17 @@
     }
 
     // Кнопка заблокирована, если обязательные поля формы пусты или чекбоксы не отмечены
-    const hasEmptyFields = !form.firstName || !form.lastName || !form.email || !form.dateOfBirth;
+    const hasEmptyFields = !personalData.firstName || !personalData.lastName || !personalData.email || !personalData.dateOfBirth;
     const hasNoAgreements = !personalDataIsAccepted.value || !privacyPolicyIsAccepted.value;
-    
+
     return hasEmptyFields || hasNoAgreements;
   });
 
+  const urlParams = new URLSearchParams(window.location.search);
+  const orderId = urlParams.get('d');
+
   // Запрос на сервер для проверки номера заказа
   const fetchOrderData = async () => {
-    const urlParams = new URLSearchParams(window.location.search);
-    const orderId = urlParams.get('d');
     
     if (!orderId) {
       orderLoading.value = false;
@@ -219,11 +319,13 @@
   // Инициализация при монтировании компонента
   onMounted(async () => {
 
-    await fetchOrderData();
-
     if (filteredItem.value) {
       expanded.value = Object.keys(filteredItem.value.groups);
     }
+
+    await fetchOrderData();
+
+    
   });
 
   // Переключение вкладок вопросов (чистая функция без side-эффектов)
@@ -242,10 +344,10 @@
 <template>
   <v-responsive>
     <v-app>
+      <v-main>
 
-      <!-- Шаг персональных данных -->
-      <v-main v-if="currentStep === 'personal'">
-        <v-container>
+        <!-- Шаг персональных данных -->
+        <v-container v-if="currentStep === 'personal'">
 
           <h4 class="main-title">Подберите наилучшие варианты цветы !</h4>
           <div class="elevation-2 rounded-lg pa-4 bg-white">
@@ -259,7 +361,7 @@
                   id="firstName"
                   variant="outlined"
                   color="green"
-                  v-model="form.firstName"
+                  v-model="personalData.firstName"
                   :rules="[rules.required, rules.name]"
                   autocomplete="on"
                   required>
@@ -272,7 +374,7 @@
                   id="lastName"
                   variant="outlined"
                   color="green"
-                  v-model="form.lastName"
+                  v-model="personalData.lastName"
                   :rules="[rules.required, rules.name]"
                   autocomplete="on"
                   required>
@@ -286,7 +388,7 @@
                   variant="outlined"
                   color="green"
                   type="email"
-                  v-model="form.email"
+                  v-model="personalData.email"
                   :rules="[rules.required, rules.email]"
                   autocomplete="on"
                   required>
@@ -300,7 +402,7 @@
                   variant="outlined"
                   color="green"
                   type="date" 
-                  v-model="form.dateOfBirth"
+                  v-model="personalData.dateOfBirth"
                   :rules="[rules.required]"
                   autocomplete="on"
                   required>
@@ -367,11 +469,9 @@
             </v-form>
           </div>
         </v-container>
-      </v-main>
 
-      <!-- Шаг вопросов -->
-      <v-main v-if="currentStep === 'questions'">
-        <v-container>
+        <!-- Шаг вопросов -->
+        <v-container v-if="currentStep === 'questions'">
           <div class="d-flex ga-4">
               <v-card class="navbar elevation-2 rounded-lg hide-on-mobile">
                 <v-list>
@@ -395,7 +495,7 @@
             <!-- </div> -->
             <div class="content flex-grow-1">
 
-              <div class="title elevation-1 rounded-lg bg-white pl-6 lr-6 pb-3 pt-3 mb-2">{{ filteredItem.groupsTitle }}</div>
+              <div class="title elevation-1 rounded-lg bg-white pl-6 pr-6 pb-3 pt-3 mb-2">{{ filteredItem.groupsTitle }}</div>
               
               <v-expansion-panels
                 rounded="lg"
@@ -444,11 +544,9 @@
           </div>
 
         </v-container>
-      </v-main>
 
-      <!-- Шаг результатов -->
-      <v-main v-if="currentStep === 'results'">
-        <v-container>
+        <!-- Шаг результатов -->
+        <v-container v-if="currentStep === 'results'">
           <h2 class="text-center">Вы прошли тестирование в экспертной программе по подбору цветов Баха для тканевой биохимической терапии</h2>
           <div class="disclaimer elevation-2 rounded-lg pa-4">
             <svg viewBox="0 0 24 24" width="24" height="24" fill="red" class="flex-shrink-0">
@@ -488,15 +586,15 @@
 
                 <!-- Постоянный обязательный текст -->
                 <div class="required-text">
-                  Принимайте назначенные цветы за 30-40 минут до еды или через полтора часа после еды. Избегайте чистки зубов и курения за 20 минут до и после приема цветов. цветы  могут приниматься в сухом виде – таблетки рассасываются во рту или непосредственно под языком. Вы можете растворить  цветы в небольшом количестве воды 120-150 мл ( цветы в таблетках растворяются очень медленно)  и принимать небольшими глотками, удерживая каждый глоток во рту по несколько секунд.</br>
-                  Если назначено несколько цветов, и Вам удобно принимать их одновременно, делайте перерыв 5-10 минут между разными цветами. Допустимо растворять все цветы в 1 л воды и принимать в течение дня как удобно.</br>
-                  Каждый флакон рассчитан на стандартный курс приема.</br>
-                  цветы в таблетках растворяются медленно. Если Вы предпочитаете растворять цветы в воде – заказывайте цветы в тритурациях (порошки), они быстро растворимы.  1 флакону по 200 таблеток эквивалентны 3 флакона тритураций по 20 грамм.</br> 
-                  Помните, что во время приема цветов  всегда необходимо принимать большое количество чистой воды (чай, кофе и другие жидкости не учитываются). Ориентировочный расчет чистой воды 25-30 мл на кг веса. Если Ваш врач ограничивает Вам прием жидкостей, то не превышайте дозу, назначенную доктором, но всегда отдавайте предпочтение чистой воде.</br>
-                  В рекомендациях дано оптимальное время приема каждой цветы в соответствии с биоритмами организма и потребностью органов-мишеней к каждой цветы. Вы можете пользоваться данным графиком или составить свой удобный для вас.</br> 
-                  Рекомендовано принимать цветы 5 дней в неделю (с понедельника по пятницу) и делать 2 дня перерыва.</br> 
-                  Дополнительные комплексные цветы рекомендовано принимать после окончания основного курса приема цветов №№1-27 для пролонгирования и закрепления эффекта.</br>
-                  Кофе и другие антидоты, от которых воздерживаются при приеме гомеопатических препаратов не оказывают существенного влияния на терапию цветами. цветы хорошо сочетаются с другими видами лечения, побочные эффекты не выявлены. Однако, могут быть кратковременные реакции ухудшения, которые проходят самостоятельно в течение 3-4 дней. Эффективность оценивается через 1-2 дня при острых ситуациях, через 4-6 недель при хронических. После окончания курса эффект постепенно нарастает в течение 2-3 месяцев.</br>
+                  Принимайте назначенные цветы за 30-40 минут до еды или через полтора часа после еды. Избегайте чистки зубов и курения за 20 минут до и после приема цветов. цветы  могут приниматься в сухом виде – таблетки рассасываются во рту или непосредственно под языком. Вы можете растворить  цветы в небольшом количестве воды 120-150 мл ( цветы в таблетках растворяются очень медленно)  и принимать небольшими глотками, удерживая каждый глоток во рту по несколько секунд.<br>
+                  Если назначено несколько цветов, и Вам удобно принимать их одновременно, делайте перерыв 5-10 минут между разными цветами. Допустимо растворять все цветы в 1 л воды и принимать в течение дня как удобно.<br>
+                  Каждый флакон рассчитан на стандартный курс приема.<br>
+                  цветы в таблетках растворяются медленно. Если Вы предпочитаете растворять цветы в воде – заказывайте цветы в тритурациях (порошки), они быстро растворимы.  1 флакону по 200 таблеток эквивалентны 3 флакона тритураций по 20 грамм.<br> 
+                  Помните, что во время приема цветов  всегда необходимо принимать большое количество чистой воды (чай, кофе и другие жидкости не учитываются). Ориентировочный расчет чистой воды 25-30 мл на кг веса. Если Ваш врач ограничивает Вам прием жидкостей, то не превышайте дозу, назначенную доктором, но всегда отдавайте предпочтение чистой воде.<br>
+                  В рекомендациях дано оптимальное время приема каждой цветы в соответствии с биоритмами организма и потребностью органов-мишеней к каждой цветы. Вы можете пользоваться данным графиком или составить свой удобный для вас.<br> 
+                  Рекомендовано принимать цветы 5 дней в неделю (с понедельника по пятницу) и делать 2 дня перерыва.<br> 
+                  Дополнительные комплексные цветы рекомендовано принимать после окончания основного курса приема цветов №№1-27 для пролонгирования и закрепления эффекта.<br>
+                  Кофе и другие антидоты, от которых воздерживаются при приеме гомеопатических препаратов не оказывают существенного влияния на терапию цветами. цветы хорошо сочетаются с другими видами лечения, побочные эффекты не выявлены. Однако, могут быть кратковременные реакции ухудшения, которые проходят самостоятельно в течение 3-4 дней. Эффективность оценивается через 1-2 дня при острых ситуациях, через 4-6 недель при хронических. После окончания курса эффект постепенно нарастает в течение 2-3 месяцев.<br>
                   Помните, что тестирование не заменяет консультации врача, носит ознакомительный характер и не является медицинским заключением. Любое заболевание требует консультации специалиста. Искусственный интеллект не может заменить врача. цветы не являются БАД и не являются лекарством. Это диетическое питание.
                 </div>
 
@@ -541,8 +639,8 @@
           </div>
           
         </v-container>
+
       </v-main>
-     
     </v-app>
   </v-responsive>
 </template>
