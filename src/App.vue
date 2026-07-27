@@ -1,29 +1,54 @@
 <script setup>
-  import { reactive, ref, computed, onMounted } from 'vue';
+  import { reactive, ref, computed, onMounted, watch } from 'vue';
   import { appConfig } from './config'
   //import {getZodiacSign} from "./utils/_getZodiacSign";
   //import {getAge} from "./utils/_getAge";
 
-
   // Ссылка на Vuetify форму для вызова валидации
   const formRef = ref(null);
 
-  // Управление шагами через одно состояние: 'personal' | 'questions' | 'results'
-  const currentStep = ref('personal');
+  // Сохраняем и восстанавливаем текущий шаг, чтобы пользователь не начинал сначала
+  // Состояния: 'personal' | 'questions' | 'results'
+  const currentStep = ref(localStorage.getItem('currentStep') || 'personal');
+
+  // Сохраняем шаг только если это НЕ 'results'
+  watch(currentStep, (newStep) => {
+    if (newStep !== 'results') {
+      localStorage.setItem('currentStep', newStep);
+    }
+  });
 
   // Чекбоксы согласий персональных данных и политики конфиденциальности
-  const personalDataIsAccepted = ref(false)
-  const privacyPolicyIsAccepted = ref(false)
+  // Восстановление согласий
+  const personalDataIsAccepted = ref(localStorage.getItem('personalDataIsAccepted') === 'true');
+  const privacyPolicyIsAccepted = ref(localStorage.getItem('privacyPolicyIsAccepted') === 'true');
+
+  watch(personalDataIsAccepted, (newValue) => localStorage.setItem('personalDataIsAccepted', newValue));
+  watch(privacyPolicyIsAccepted, (newValue) => localStorage.setItem('privacyPolicyIsAccepted', newValue));
+
+  // Сохраняем активную вкладку вопросов, если пользователь перезагрузил страницу на шаге 'questions'
+  const activeTabId = ref(Number(localStorage.getItem('activeTabId')) || 1); // Активный ID = 1 вкладки вопросов
+  watch(activeTabId, (newId) => localStorage.setItem('activeTabId', newId));
 
   // Данные API заказа
   const orderData = ref(null)
   const orderLoading = ref(true)
   const orderError = ref(null)
 
-  // Хранилище для выбранных симптомов
-  // Ключом будет имя симптома, значением — true/false
-  const selectedSymptoms = reactive({});
+  // Хранилище localStorage для выбранных симптомов
+  const getSavedSymptoms = () => {
+    try {
+      const saved = localStorage.getItem('selectedSymptoms');
+      return saved ? JSON.parse(saved) : {};
+    } catch (e) {
+      console.error('Ошибка чтения выбранных симптомов из кэша', e);
+      return {};
+    }
+  };
 
+  const selectedSymptoms = reactive(getSavedSymptoms());
+
+  // Хранилище для выбранных симптомов (структурированное)
   const selectedSymptomsStructured = computed(() => {
     return items.value
       .map(item => {
@@ -53,9 +78,6 @@
   // Объект результатов для передачи на сервер
   const results = ref({})
 
-  // Активный ID вкладки вопросов (управляет вкладками декларативно)
-  const activeTabId = ref(1);
-
   // Массив открытых панелей-аккордеонов
   const expanded = ref([]);
 
@@ -64,18 +86,29 @@
     required: v => !!v || 'Это поле обязательно для заполнения',
     name: v => (v && v.length >= 3 && v.length <= 50) || 'Поле должно быть от 3 до 50 символов',
     email: v => !v || /^\w+([.-]?\w+)*@\w+([.-]?\w+)*(\.\w{2,3})+$/.test(v) || 'Введен некорректный E-mail',
-    phone: v => !v || v.length <= 19 || 'Поле должно быть не более 19 символов',
+    //phone: v => !v || v.length <= 19 || 'Поле должно быть не более 19 символов',
     checkbox: v => !!v || 'Необходимо ваше согласие'
   };
 
   // Персональные данные
-  const personalData = reactive({
-    firstName: '',
-    lastName: '',
-    email: '',
-    phone: '',
-    dateOfBirth: ''
-  })
+  const getSavedPersonalData = () => {
+    const defaultData = { 
+      firstName: '', 
+      lastName: '', 
+      email: '', 
+      dateOfBirth: '' 
+    }
+
+    try {
+      const saved = localStorage.getItem('personalData');
+      return saved ? JSON.parse(saved) : defaultData;
+    } catch (e) {
+      console.error('Ошибка чтения персональных данных из кэша', e);
+      return defaultData;
+    }
+  };
+
+  const personalData = reactive(getSavedPersonalData());
 
   // Клик по кнопке "Продолжить" на шаге персональных данных
   async function personalDataStepNext() {
@@ -101,7 +134,10 @@
   // Запрос на сервер для проверки номера заказа
   const fetchResultsData = async () => {
 
-    const url = `${appConfig.apiEndpoint}/wp-json/myplugin/v1/authors-fbq/${orderId}?token=${orderData.value.token}`;
+    // const url = `${appConfig.apiEndpoint}/wp-json/myplugin/v1/authors-fbq/${orderId}?token=${orderData.value.token}`;
+    const orderToken = ref(localStorage.getItem('orderToken'));
+
+    const url = `${appConfig.apiEndpoint}/wp-json/myplugin/v1/authors-fbq/${orderId}?token=${orderToken.value}`;
 
     try {
       const response = await fetch(url, {
@@ -170,6 +206,19 @@
 
     // Отправка данных на сервер
     fetchResultsData()
+
+    // Полная очистка всего кэша
+    localStorage.clear() // Удаляет все ключи разом
+
+    // Корректный сброс реактивных состояний до начальных значений
+    Object.keys(selectedSymptoms).forEach(key => delete selectedSymptoms[key]);
+    personalData.firstName = '';
+    personalData.lastName = '';
+    personalData.email = '';
+    personalData.dateOfBirth = '';
+    personalDataIsAccepted.value = false
+    privacyPolicyIsAccepted.value = false
+    activeTabId.value = 1
   }
 
   // Пример формата данных
@@ -308,6 +357,9 @@
       if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
       
       orderData.value = await response.json();
+
+      // Добавляб токен в LS
+      localStorage.setItem('orderToken', orderData.value.token);
     } catch (err) {
       orderError.value = err.message;
       console.error(orderError.value);
@@ -328,7 +380,7 @@
     
   });
 
-  // Переключение вкладок вопросов (чистая функция без side-эффектов)
+  // Переключение вкладок вопросов
   function questionList(item) {
     activeTabId.value = item.id;
     expanded.value = Object.keys(item.groups).map(Number);
@@ -339,12 +391,34 @@
     window.print()
   }
 
+  // Отслеживание изменений симптомов при каждом клике на чекбокс данные пишутся в localStorage
+  watch(
+    selectedSymptoms,
+    (newSymptoms) => {
+      localStorage.setItem('selectedSymptoms', JSON.stringify(newSymptoms));
+    },
+    { deep: true }
+  );
+  
+  // Отслеживание изменений персональных данных для записи в localStorage
+  watch(
+    personalData,
+    (newData) => {
+      localStorage.setItem('personalData', JSON.stringify(newData));
+    },
+    { deep: true }
+  );
+
 </script>
 
 <template>
   <v-responsive>
     <v-app>
       <v-main>
+
+        <v-alert v-if="orderError" type="error" class="mb-4">
+          Ошибка загрузки данных заказа
+        </v-alert>
 
         <!-- Шаг персональных данных -->
         <v-container v-if="currentStep === 'personal'">
@@ -356,7 +430,7 @@
             <v-form ref="formRef" @submit.prevent="personalDataStepNext">
 
               <div class="form-group">
-                <label id="firstName-label" for="firstName">Имя*</label>
+                <label id="firstName-label" for="firstName">Имя<span class="text-red">*</span></label>
                 <v-text-field
                   id="firstName"
                   variant="outlined"
@@ -369,7 +443,7 @@
               </div>
 
               <div class="form-group">
-                <label id="lastName-label" for="lastName">Фамилия*</label>
+                <label id="lastName-label" for="lastName">Фамилия<span class="text-red">*</span></label>
                 <v-text-field 
                   id="lastName"
                   variant="outlined"
@@ -382,7 +456,7 @@
               </div>
 
               <div class="form-group">
-                <label id="email-label" for="email">Электронная почта*</label>
+                <label id="email-label" for="email">Электронная почта<span class="text-red">*</span></label>
                 <v-text-field 
                   id="email"
                   variant="outlined"
@@ -396,7 +470,7 @@
               </div>
 
               <div class="form-group">
-                <label id="dateOfBirth-label" for="dateOfBirth">Дата рождения*</label>
+                <label id="dateOfBirth-label" for="dateOfBirth">Дата рождения<span class="text-red">*</span></label>
                 <v-text-field 
                   id="dateOfBirth"
                   variant="outlined"
@@ -404,6 +478,7 @@
                   type="date" 
                   v-model="personalData.dateOfBirth"
                   :rules="[rules.required]"
+                  :max="new Date().toISOString().split('T')[0]" 
                   autocomplete="on"
                   required>
                 </v-text-field>
