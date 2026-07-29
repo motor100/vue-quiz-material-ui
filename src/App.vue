@@ -3,6 +3,8 @@
   import { appConfig } from './config'
   //import {getZodiacSign} from "./utils/_getZodiacSign";
   //import {getAge} from "./utils/_getAge";
+  //import { parseXlsxData, transformQuestionsData } from './services/excelParser';
+  import parsedData from './xlsData/xlsParsedDump.json';
 
   // Ссылка на Vuetify форму для вызова валидации
   const formRef = ref(null);
@@ -134,10 +136,9 @@
   // Запрос на сервер для проверки номера заказа
   const fetchResultsData = async () => {
 
-    // const url = `${appConfig.apiEndpoint}/wp-json/myplugin/v1/authors-fbq/${orderId}?token=${orderData.value.token}`;
-    const orderToken = ref(localStorage.getItem('orderToken'));
+    const orderToken = localStorage.getItem('orderToken');
 
-    const url = `${appConfig.apiEndpoint}/wp-json/myplugin/v1/authors-fbq/${orderId}?token=${orderToken.value}`;
+    const url = `${appConfig.apiEndpoint}/wp-json/myplugin/v1/authors-fbq/${orderId}?token=${orderToken}`;
 
     try {
       const response = await fetch(url, {
@@ -221,7 +222,48 @@
     activeTabId.value = 1
   }
 
+  // Преобразование данных из xlsParsedDump.json
+  function transformQuestionsData(questionsDataObj) {
+    const result = [];
+    let globalId = 1;
+
+    for (const [sheetName, stepData] of Object.entries(questionsDataObj)) {
+      const stepObj = {
+        title: stepData.stepTitle || sheetName, 
+        id: globalId++,
+        active: result.length === 0, 
+        groupsTitle: '', 
+        groups: []
+      };
+
+      // Тоже используем Object.entries() для блоков
+      for (const [blockName, blockData] of Object.entries(stepData.blocks)) {
+        const checkboxes = [];
+
+        // Вопросы теперь лежат в ключах объекта questions
+        for (const questionText of Object.keys(blockData.questions)) {
+          checkboxes.push(questionText);
+        }
+
+        stepObj.groups.push({
+          id: globalId++,
+          title: blockName, 
+          checkboxes: checkboxes
+        });
+      }
+
+      result.push(stepObj);
+    }
+
+    return result;
+  }
+
+  const items = ref([])
+
+  items.value = transformQuestionsData(parsedData.questions)
+
   // Пример формата данных
+  /*
   const items = ref([
     {
       title: 'Общие симптомы',
@@ -318,6 +360,9 @@
       ]
     },
   ])
+  */
+
+  //const items = ref([])
 
   // Вычисляем активный элемент на основе activeTabId
   const filteredItem = computed(() => {
@@ -372,18 +417,19 @@
   onMounted(async () => {
 
     if (filteredItem.value) {
-      expanded.value = Object.keys(filteredItem.value.groups);
+      //expanded.value = Object.keys(filteredItem.value.groups);
+      expanded.value = filteredItem.value.groups.map((_, index) => index);
     }
 
     await fetchOrderData();
-
     
   });
 
   // Переключение вкладок вопросов
   function questionList(item) {
     activeTabId.value = item.id;
-    expanded.value = Object.keys(item.groups).map(Number);
+    //expanded.value = Object.keys(item.groups).map(Number);
+    expanded.value = item.groups.map((_, index) => index);
   }
 
   // Печать страницы
@@ -408,6 +454,9 @@
     },
     { deep: true }
   );
+
+  
+
 
 </script>
 
