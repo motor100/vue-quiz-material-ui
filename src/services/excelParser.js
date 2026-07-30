@@ -184,6 +184,10 @@ function mapReplacer(key, value) {
 
 // Функция обработки экспорта 
 export async function handleExcelImport() {
+
+  // Если функция уже выполнялась — сразу return, ничего не скачивая повторно
+  if (isAlreadyImported) return; 
+
   try {
 
     isAlreadyImported = true; // Блокируем последующие вызовы
