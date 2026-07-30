@@ -27,7 +27,7 @@ function mapReplacer(key, value) {
 // Команда копирует весь объект, правильно разворачивая внутренние Map
 copy(JSON.stringify(temp0, mapReplacer, 2));
 
-Вставляем все из буфера обмена в файл xslData/xslParsedDump.json
+Вставляем все из буфера обмена в файл xlsData/xslParsedDump.json
 
 2. == Скачивание файла через браузер ==
 
@@ -36,7 +36,7 @@ copy(JSON.stringify(temp0, mapReplacer, 2));
 //import { handleExcelImport } from './services/excelParser';
 //await handleExcelImport();
 
-Найти скачанный файл xslParsedDump.json в папке Загрузки и скопировать его в папку src/xslData
+Найти скачанный файл xslParsedDump.json в папке Загрузки и скопировать его в папку src/xlsData
 
 Добавить комментарий на строки парсинга в файле App.vue
 */
