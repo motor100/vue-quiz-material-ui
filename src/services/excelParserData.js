@@ -1,62 +1,9 @@
 // Парсинг данных из xls
   //const xlsData = ref(new Map());
 
-const isLoadingXlsData = ref(false);
 
-async function handleExcelImport(fileUrl) {
-try {
-    console.log('Начало загрузки и парсинга файла...');
-    
-    // Вызов основной функции парсинга
-    const parsedData = await parseXlsxData(fileUrl);
-    
-    console.log('Парсинг успешно завершен!', parsedData);
-    
-    // Здесь вы можете записать данные в реактивные переменные Vue
-    // Например: 
-    // this.itemsList = parsedData.itemsList; (Vue 2)
-    // itemsList.value = parsedData.itemsList;
-    //xlsData.value = parsedData.itemsList
-    //console.log(xlsData.value)
-    
-    return parsedData;
 
-} catch (error) {
-    // Отлов любых ошибок: сетевых, отсутствия листов или неверного формата данных
-    console.error('Произошла ошибка при обработке Excel-файла:', error.message);
-    
-    // Здесь можно вывести уведомление для пользователя (ui-toast, alert и т.д.)
-    alert(`Ошибка импорта: ${error.message}`);
-    
-    // Возвращаем null или пробрасываем ошибку дальше в зависимости от логики приложения
-    return null; 
-}
-}
 
-async function loadXlsData() {
-isLoadingXlsData.value = true;
-
-const result = await handleExcelImport('/table_schuessler_salts_calc.xlsx');
-
-if (result && result.questions) {
-
-//const rawItems = transformQuestionsData(result.questions);
-
-// Трансформируем Map из result.questions в ваш формат массива
-//items.value = transformQuestionsData(result.questions);
-
-//items.value = Object.freeze(rawItems);
-// ВРЕМЕННО: Выводим весь сырой объект парсинга в консоль
-console.log('RAW_PARSED_DATA:', result); 
-
-console.log('Данные успешно трансформированы:', items.value);
-}
-
-isLoadingXlsData.value = false;
-}
-
-// Запуск загрузки
-loadXlsData();
 
 
 

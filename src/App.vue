@@ -3,8 +3,11 @@
   import { appConfig } from './config'
   //import {getZodiacSign} from "./utils/_getZodiacSign";
   //import {getAge} from "./utils/_getAge";
-  //import { parseXlsxData, transformQuestionsData } from './services/excelParser';
   import parsedData from './xlsData/xlsParsedDump.json';
+
+  // Убрать комментарий для парсинга из файла Excel
+  //import { handleExcelImport } from './services/excelParser';
+  //await handleExcelImport();
 
   // Ссылка на Vuetify форму для вызова валидации
   const formRef = ref(null);
@@ -222,8 +225,8 @@
     activeTabId.value = 1
   }
 
-  // Преобразование данных из xlsParsedDump.json
-  function transformQuestionsData(questionsDataObj) {
+  // Преобразование данных JSON из xlsParsedDump.json
+  function transformJsonData(questionsDataObj) {
     const result = [];
     let globalId = 1;
 
@@ -260,7 +263,7 @@
 
   const items = ref([])
 
-  items.value = transformQuestionsData(parsedData.questions)
+  items.value = transformJsonData(parsedData.questions)
 
   // Пример формата данных
   /*
@@ -454,9 +457,6 @@
     },
     { deep: true }
   );
-
-  
-
 
 </script>
 

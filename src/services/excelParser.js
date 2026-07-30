@@ -1,12 +1,57 @@
 import * as XLSX from 'xlsx';
+import { appConfig } from './../config';
+
+/* 
+=== Инструкция ===
+
+Данные в файле Excel заказчик редко обновляет.
+Чтобы каждый раз при обновлении страницы не парсить данные из Excel файла, парсим их один раз и весь вывод сохраняем в файле json.
+Импортируем этот json файл в проект Vue. Все данные будут в виде обычных объектов и массивов.
+Когда заказчик обновит Excel файла, то запускаем парсер и весь вывод сохраняем в файле json.
+
+1. == Вручную ==
+
+В консоле будет строка RAW_PARSED_DATA:. 
+Нажмите на нее правой кнопкой мыши и выберите пункт Store as global variable (Сохранить как глобальную переменную).
+Браузер автоматически создаст переменную с именем temp0 (или temp1), содержащую этот объект.
+Вставьте в самую нижнюю строку консоли следующий скрипт и нажмите Enter:
+
+// Функция преобразует Map в объекты, чтобы JSON их не стёр
+function mapReplacer(key, value) {
+  if (value instanceof Map) {
+    return Object.fromEntries(value);
+  }
+  return value;
+}
+
+// Команда копирует весь объект, правильно разворачивая внутренние Map
+copy(JSON.stringify(temp0, mapReplacer, 2));
+
+Вставляем все из буфера обмена в файл xslData/xslParsedDump.json
+
+2. == Скачивание файла через браузер ==
+
+Убрать комментарий в файле App.vue
+Строки
+//import { handleExcelImport } from './services/excelParser';
+//await handleExcelImport();
+
+Найти скачанный файл xslParsedDump.json в папке Загрузки и скопировать его в папку src/xslData
+
+Добавить комментарий на строки парсинга в файле App.vue
+*/
+
+// Флаг защиты вне функции чтобы файл скачался 1 раз
+let isAlreadyImported = false;
 
 /**
  * Загружает и парсит Excel-файл по указанному URL.
- * Требуется библиотека xlsx (SheetJS), доступная глобально через окно или модули.
+ * Для парсинга из Excel nребуется библиотека xlsx (SheetJS), доступная глобально через окно или модули.
+ * 
  * @param {string} url - Ссылка на xlsx файл
  * @returns {Promise<{itemsMap: Map, groupsResult: Array, stepsList: Array, questionsMap: Map}>}
  */
-export async function parseXlsxData(url) {
+async function parseXlsxData(url) {
   // 1. Загрузка файла и преобразование в ArrayBuffer
   const response = await fetch(url);
   const arrayBuffer = await response.arrayBuffer();
@@ -129,41 +174,64 @@ export async function parseXlsxData(url) {
   };
 }
 
-// Функия преобразования под данных из xls под мой формат
-export function transformQuestionsData(questionsMap) {
-  const result = [];
-  let globalId = 1; // Сквозной счетчик ID для шагов и групп
-
-  // Проходим по всем листам (Шагам) в Map
-  for (const [sheetName, stepData] of questionsMap.entries()) {
-    const stepObj = {
-      // Используем stepTitle из данных, если пустой — берем имя листа
-      title: stepData.stepTitle || sheetName, 
-      id: globalId++,
-      // Делаем первый элемент активным (true), остальные скрытыми (false)
-      active: result.length === 0, 
-      groupsTitle: '', // Свойство из вашего формата (можно оставить пустым или заполнить)
-      groups: []
-    };
-
-    // Проходим по всем блокам (Группам) внутри шага
-    for (const [blockName, blockData] of stepData.blocks.entries()) {
-      const checkboxes = [];
-
-      // Собираем все вопросы (строки) блока в массив строк для checkboxes
-      for (const questionText of blockData.questions.keys()) {
-        checkboxes.push(questionText);
-      }
-
-      stepObj.groups.push({
-        id: globalId++,
-        title: blockName, // Название блока из Excel (A)
-        checkboxes: checkboxes
-      });
-    }
-
-    result.push(stepObj);
+// Функция замены Map в объекты
+function mapReplacer(key, value) {
+  if (value instanceof Map) {
+    return Object.fromEntries(value);
   }
+  return value;
+}
 
-  return result;
+// Функция обработки экспорта 
+export async function handleExcelImport() {
+  try {
+
+    isAlreadyImported = true; // Блокируем последующие вызовы
+
+    console.log('Начало загрузки и парсинга файла...');
+
+    const url = appConfig.xlsxUrl;
+    
+    // Вызов функции парсинга
+    const parsedData = await parseXlsxData(url);
+    
+    console.log('Парсинг успешно завершен!');
+
+    // ---- СОХРАНЕНИЕ В JSON ----
+
+    // 1. == Вручную ==
+    // Вывод всего объект парсинга в консоль для ручного копирования в файл json
+    //console.log('RAW_PARSED_DATA:', parsedData);
+
+    // 2. == Скачивание файла через браузер ==
+    // Превращаем данные в JSON-строку с отступами в 2 пробела
+    const jsonString = JSON.stringify(parsedData, mapReplacer, 2);
+
+    // Создаем Blob-объект (виртуальный текстовый файл в памяти браузера)
+    const blob = new Blob([jsonString], { type: 'application/json' });
+    
+    // Создаем временную невидимую ссылку на скачивание
+    const link = document.createElement('a');
+    link.href = URL.createObjectURL(blob);
+    link.download = 'xlsParsedDump.json'; // Имя файла при скачивании
+    
+    // Программно кликаем по ней и удаляем ее из памяти
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(link.href);
+
+    console.log('Файл сгенерирован и отправлен на скачивание.');
+    
+    return parsedData;
+
+  } catch (error) {
+
+    isAlreadyImported = false; // В случае ошибки сбрасываем флаг
+
+    // Отлов любых ошибок: сетевых, отсутствия листов или неверного формата данных
+    console.error('Произошла ошибка при обработке Excel-файла:', error.message);
+    
+    return false;
+  }
 }
