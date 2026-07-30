@@ -54,6 +54,7 @@
   const selectedSymptoms = reactive(getSavedSymptoms());
 
   // Хранилище для выбранных симптомов (структурированное)
+  /*
   const selectedSymptomsStructured = computed(() => {
     return items.value
       .map(item => {
@@ -79,6 +80,7 @@
       // Исключаем вкладки меню, в которых суммарно ничего не выбрали
       .filter(item => item.sections.length > 0);
   });
+  */
 
   // Объект результатов для передачи на сервер
   const results = ref({})
@@ -176,10 +178,23 @@
   function questionStepNext() {
     currentStep.value = 'results';
 
+    const structuredSymptoms = items.value
+      .map(item => {
+        const sections = item.groups
+          .map(group => {
+            const checked = group.checkboxes.filter(checkbox => !!selectedSymptoms[checkbox]);
+            return { title: group.title, checked: checked };
+          })
+          .filter(section => section.checked.length > 0);
+        return { title: item.title, sections: sections };
+      })
+      .filter(item => item.sections.length > 0);
+
     // Сборка объекта с результатами для отправки на сервер
     results.value.token = orderData.value.token // На всякий случай, если WP не нашел токен в параметрах URL
     results.value.customer = { ...personalData } // деструктуризация и разрыв реактивной связи
-    results.value.checkboxes = JSON.parse(JSON.stringify(selectedSymptomsStructured.value)) // передаю JS объект вместо proxy
+    //results.value.checkboxes = JSON.parse(JSON.stringify(selectedSymptomsStructured.value)) // передаю JS объект вместо proxy
+    results.value.checkboxes = structuredSymptoms;
      // тут будут подобранные БАДы
     results.value.results = [
       { // описание соли из таблицы products
@@ -225,37 +240,55 @@
     activeTabId.value = 1
   }
 
-  // Преобразование данных JSON из xlsParsedDump.json
+  // Преобразование данных JSON из parsedData.questions в формат для интерфейса
   function transformJsonData(questionsDataObj) {
+    if (!questionsDataObj) return [];
+    
     const result = [];
-    let globalId = 1;
+    let globalId = 1; // Сквозной счетчик ID для уникальных key в v-for
 
+    // 1. Проходим по всем Листам (Шагам) в JSON
     for (const [sheetName, stepData] of Object.entries(questionsDataObj)) {
       const stepObj = {
-        title: stepData.stepTitle || sheetName, 
+        // Берём красивый stepTitle из Excel, если его нет — имя листа
+        title: sheetName , 
         id: globalId++,
+        // Первую вкладку делаем активной по умолчанию
         active: result.length === 0, 
-        groupsTitle: '', 
+        groupsTitle: stepData.stepTitle || '', // Заголовок над блоками симптомов
         groups: []
       };
 
-      // Тоже используем Object.entries() для блоков
-      for (const [blockName, blockData] of Object.entries(stepData.blocks)) {
-        const checkboxes = [];
+      // Проверяем, есть ли блоки в этом шаге
+      if (stepData.blocks) {
+        // 2. Проходим по всем Блокам (Группам симптомов) внутри шага
+        for (const [blockName, blockData] of Object.entries(stepData.blocks)) {
+          const checkboxes = [];
 
-        // Вопросы теперь лежат в ключах объекта questions
-        for (const questionText of Object.keys(blockData.questions)) {
-          checkboxes.push(questionText);
+          // Проверяем наличие вопросов
+          if (blockData.questions) {
+            // 3. Собираем только КЛЮЧИ (текст симптомов) из объекта questions
+            // Сами баллы (values) нам на этапе рендеринга чекбоксов не нужны
+            for (const questionText of Object.keys(blockData.questions)) {
+              checkboxes.push(questionText.trim()); // trim() уберет случайные пробелы на концах
+            }
+          }
+
+          // Добавляем сформированную группу в шаг, только если в ней есть чекбоксы
+          if (checkboxes.length > 0) {
+            stepObj.groups.push({
+              id: globalId++,
+              title: blockName, // Название блока (например, "Низкий уровень энергии")
+              checkboxes: checkboxes
+            });
+          }
         }
-
-        stepObj.groups.push({
-          id: globalId++,
-          title: blockName, 
-          checkboxes: checkboxes
-        });
       }
 
-      result.push(stepObj);
+      // Добавляем шаг в общий результат, если у него появились группы
+      if (stepObj.groups.length > 0) {
+        result.push(stepObj);
+      }
     }
 
     return result;
@@ -265,107 +298,6 @@
 
   items.value = transformJsonData(parsedData.questions)
 
-  // Пример формата данных
-  /*
-  const items = ref([
-    {
-      title: 'Общие симптомы',
-      id: 1,
-      active: true,
-      groupsTitle: 'Отметьте какие из общих симптомов беспокоят Вас больше всего в настоящее время.',
-      groups: [
-        {
-          id: 101,
-          title: 'Низкий уровень энергии',
-          checkboxes: [
-            'Усталость по утрам',
-            'Весенняя усталость',
-            'Усталость постоянная',
-            'Перегруженность',
-            'Слабость',
-            'Медлительность',
-            'Высокие нагрузки',
-            'Перенапряжение',
-            'Джетлаг',
-          ]
-        },
-        {
-          id: 102,
-          title: 'Физическое недомогание',
-          checkboxes: [
-            'Процесс выздоровления после болезни',
-            'Послеоперационный период',
-            'Подготовка к оперативному лечению',
-            'Физическое истощение',
-            'Изнуряющая тяжелая болезнь',
-            'Частое употребление алкоголя',
-            'Хроническая интоксикация',
-          ]
-        }
-      ],
-    },
-    {
-      title: 'Сигнатуры',
-      id: 2,
-      active: false,
-      groupsTitle: 'Для следующего шага Вам потребуется зеркало. Внимательно рассмотрите свое лицо, шею.Отмечайте все небольшие изменения, которые Вы замечаете. При дефицитах минералов, организм, прежде всего, истощает их запасы в коже. Это может проявляться различными, иногда малозаметными симптомами.',
-      groups: [
-        {
-          id: 103,
-          title: 'Общий вид кожи',
-          checkboxes: [
-            'Чекбокс 1',
-            'Чекбокс 2',
-          ]
-        },
-        {
-          id: 104,
-          title: 'Характеристика особенностей морфотипа лица',
-          checkboxes: [
-            'Чекбокс 3',
-            'Чекбокс 4',
-            'Чекбокс 5',
-          ]
-        },
-        {
-          id: 105,
-          title: 'Сигнатуры в области глаз и периорбитальной области',
-          checkboxes: [
-            'Глубокая морщина',
-            'Темные круги',
-          ]
-        }
-      ]
-    },
-    {
-      title: 'Психологическое состояние',
-      id: 3,
-      active: false,
-      groupsTitle: 'Отметьте какие характеристики к Вам относятся.',
-      groups: [
-        {
-          id: 106,
-          title: 'Страхи',
-          checkboxes: [
-            'Чекбокс 6',
-            'Чекбокс 7',
-          ]
-        },
-        {
-          id: 107,
-          title: 'Настроение',
-          checkboxes: [
-            'Чекбокс 8',
-            'Чекбокс 9',
-            'Чекбокс 10',
-          ]
-        }
-      ]
-    },
-  ])
-  */
-
-  //const items = ref([])
 
   // Вычисляем активный элемент на основе activeTabId
   const filteredItem = computed(() => {
@@ -596,6 +528,30 @@
 
         <!-- Шаг вопросов -->
         <v-container v-if="currentStep === 'questions'">
+
+        <!-- МОБИЛЬНАЯ НАВИГАЦИЯ: Горизонтальная лента вкладок (видимая только на мобильных) -->
+        <v-tabs
+          v-model="activeTabId"
+          bg-color="white"
+          color="primary"
+          fixed-tabs
+          show-arrows
+          class="mobile-tabs elevation-1 rounded-lg mb-4"
+        >
+          <v-tab :value="0" @click="questionStepBack" class="font-weight-medium text-capitalize">
+            Личные данные
+          </v-tab>
+          <v-tab
+            v-for="item in items"
+            :key="'mob-' + item.id"
+            :value="item.id"
+            @click="questionList(item)"
+            class="text-capitalize"
+          >
+            {{ item.title }}
+          </v-tab>
+        </v-tabs>
+
           <div class="d-flex ga-4">
               <v-card class="navbar elevation-2 rounded-lg hide-on-mobile">
                 <v-list>
@@ -619,7 +575,11 @@
             <!-- </div> -->
             <div class="content flex-grow-1">
 
-              <div class="title elevation-1 rounded-lg bg-white pl-6 pr-6 pb-3 pt-3 mb-2">{{ filteredItem.groupsTitle }}</div>
+              <div 
+                class="title elevation-1 rounded-lg bg-white pl-6 pr-6 pb-3 pt-3 mb-2"
+                v-if="filteredItem.groupsTitle">
+                {{ filteredItem.groupsTitle }}
+              </div>
               
               <v-expansion-panels
                 rounded="lg"
@@ -634,14 +594,22 @@
                   class="mt-0"
                   >
                   <v-expansion-panel-title>{{ item.title }}</v-expansion-panel-title>
-                  <v-expansion-panel-text>
+                  <v-expansion-panel-text lazy>
 
-                    <v-checkbox
-                      v-for="checkbox in item.checkboxes"
-                      :label="checkbox"
-                      v-model="selectedSymptoms[checkbox]"
-                      hide-details>
-                    </v-checkbox>
+                    <label 
+                      v-for="checkbox in item.checkboxes" 
+                      :key="checkbox"
+                      class="fast-checkbox-label"
+                      :class="{ 'fast-checkbox-label--checked': !!selectedSymptoms[checkbox] }"
+                    >
+                      <!-- Обычный чекбокс вместо компонента Vuetify <v-checkbox> -->
+                      <input 
+                        type="checkbox" 
+                        v-model="selectedSymptoms[checkbox]"
+                        class="fast-checkbox-input"
+                      />
+                      <span class="fast-checkbox-text">{{ checkbox }}</span>
+                    </label>
 
                   </v-expansion-panel-text>
                 </v-expansion-panel>
@@ -810,9 +778,92 @@
   }
 
   .navbar {
-    width: 300px;
+    width: 350px;
     height: 100%;
     flex-shrink: 0;
+  }
+
+  /* Обертка-строка чекбокса */
+.fast-checkbox-label {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 10px 12px;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: background-color 0.2s, border-color 0.2s;
+  border: 1px solid transparent;
+  user-select: none;
+}
+
+/* Эффект при наведении */
+.fast-checkbox-label:hover {
+  background-color: #f0edf7;
+}
+
+/* Подсветка всей строки при выборе (опционально, для удобства) */
+.fast-checkbox-label--checked {
+  background-color: #e8f5e9;
+}
+.fast-checkbox-label--checked:hover {
+  background-color: #c8e6c9;
+}
+
+/* Нативный инпут */
+.fast-checkbox-input {
+  appearance: none;
+  -webkit-appearance: none;
+  width: 18px;
+  height: 18px;
+  border: 2px solid #757575;
+  border-radius: 4px;
+  outline: none;
+  background-color: #fff;
+  display: grid;
+  place-content: center;
+  flex-shrink: 0;
+  margin-top: 2px;
+  cursor: pointer;
+  transition: 0.1s border-color, 0.1s background-color;
+}
+
+/* Состояние инпута при ховере */
+.fast-checkbox-input:hover {
+  border-color: #4ca64c;
+}
+
+/* Состояние инпута при клике (активный) */
+.fast-checkbox-input:checked {
+  border-color: #4caf50;
+  background-color: #4caf50;
+}
+
+/* Рисуем галочку внутри через псевдоэлемент */
+.fast-checkbox-input::before {
+  content: "";
+  width: 10px;
+  height: 6px;
+  border-left: 2px solid #fff;
+  border-bottom: 2px solid #fff;
+  transform: rotate(-45deg) scale(0);
+  transition: 0.1s transform ease-in-out;
+  margin-bottom: 2px; /* Центрирование галочки */
+}
+
+.fast-checkbox-input:checked::before {
+  transform: rotate(-45deg) scale(1);
+}
+
+/* Текст симптома */
+.fast-checkbox-text {
+  font-family: 'Inter', sans-serif;
+  font-size: 16px;
+  line-height: 1.4;
+  color: #212121;
+}
+
+  .mobile-tabs {
+    display: none;
   }
   
   :deep(.v-expansion-panel-title) {
@@ -855,7 +906,58 @@
     .hide-on-mobile {
       display: none;
     }
+    .mobile-tabs {
+      display: flex;
+    }
   }
 
+</style>
+
+<!-- Этот блок без scoped — для глобальных правил шрифтов -->
+<style>
+@font-face {
+  font-family: 'Inter';
+  src: url('./assets/fonts/Inter-Light.woff2') format('woff2');
+  font-weight: 300;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'Inter';
+  src: url('./assets/fonts/Inter-Regular.woff2') format('woff2');
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'Inter';
+  src: url('./assets/fonts/Inter-Medium.woff2') format('woff2');
+  font-weight: 500;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'Inter';
+  src: url('./assets/fonts/Inter-SemiBold.woff2') format('woff2');
+  font-weight: 600;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'Inter';
+  src: url('./assets/fonts/Inter-Bold.woff2') format('woff2');
+  font-weight: 700;
+  font-style: normal;
+  font-display: swap;
+}
+
+/* Назначаем глобально для всего Vuetify приложения */
+.v-application {
+  font-family: 'Inter', sans-serif !important;
+}
 </style>
 

@@ -18,9 +18,6 @@ import DateFnsAdapter from '@date-io/date-fns'
 import ruRU from 'date-fns/locale/ru'
 
 
-//const rules = useRules()
-
-
 // Register Vuetify as plugin
 const vuetify = createVuetify({
   theme: {
@@ -39,6 +36,13 @@ const vuetify = createVuetify({
       ru: ruRU,
     },
   },
+
+  // Локальный шрифт для всех Vuetify компонентов
+  defaults: {
+    global: {
+      style: [{ fontFamily: 'Inter, sans-serif' }]
+    }
+  }
 })
 
 
