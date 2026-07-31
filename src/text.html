@@ -1,0 +1,121 @@
+Просто добавьте атрибут open (без двоеточия, как стандартный HTML-атрибут) к тегу <details>. Браузер сам откроет все панели при рендеринге:
+
+<!-- Все панели изначально открыты силами браузера -->
+<div class="expansion-panels-native">
+  <details 
+    v-for="item in filteredItem.groups" 
+    :key="item.id"
+    class="panel-native"
+    open
+  >
+    <summary class="panel-summary-native">
+      {{ item.title }}
+      <span class="panel-icon-native"></span>
+    </summary>
+    
+    <div class="panel-content-native">
+      <label 
+        v-for="checkbox in item.checkboxes" 
+        :key="checkbox"
+        class="fast-checkbox-label"
+        :class="{ 'fast-checkbox-label--checked': !!selectedSymptoms[checkbox] }"
+      >
+        <input 
+          type="checkbox" 
+          v-model="selectedSymptoms[checkbox]"
+          class="fast-checkbox-input"
+        />
+        <span class="fast-checkbox-text">{{ checkbox }}</span>
+      </label>
+    </div>
+  </details>
+</div>
+
+
+// Удалить эту строку:
+const expanded = ref([]);
+
+
+// Было:
+onMounted(async () => {
+  if (filteredItem.value) {
+    expanded.value = filteredItem.value.groups.map((_, index) => index);
+  }
+  await fetchOrderData();
+});
+
+// Стало (чисто и аккуратно):
+onMounted(async () => {
+  await fetchOrderData();
+});
+
+
+// Было:
+function questionList(item) {
+  activeTabId.value = item.id;
+  expanded.value = item.groups.map((_, index) => index);
+}
+
+// Стало:
+function questionList(item) {
+  activeTabId.value = item.id;
+}
+
+
+/* Стили для нативных аккордеонов */
+.expansion-panels-native {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.panel-native {
+  background-color: #fff;
+  border-radius: 8px;
+  box-shadow: 0px 1px 3px rgba(0, 0, 0, 0.05);
+  overflow: hidden;
+  border: 1px solid #e0e0e0;
+}
+
+.panel-summary-native {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 12px 20px;
+  font-weight: 500;
+  cursor: pointer;
+  list-style: none; /* Убирает дефолтную стрелочку в Chrome/Firefox */
+  user-select: none;
+}
+
+/* Убирает дефолтную стрелочку в Safari */
+.panel-summary-native::-webkit-details-marker {
+  display: none;
+}
+
+/* Кастомная стрелочка-иконка */
+.panel-icon-native {
+  width: 10px;
+  height: 10px;
+  border-bottom: 2px solid #757575;
+  border-right: 2px solid #757575;
+  transform: rotate(45deg);
+  transition: transform 0.2s ease;
+  margin-right: 4px;
+}
+
+/* Поворот стрелочки при открытии */
+.panel-native[open] .panel-icon-native {
+  transform: rotate(-135deg);
+}
+
+/* Граница между заголовком и контентом при открытии */
+.panel-native[open] .panel-summary-native {
+  border-bottom: 1px solid #e0e0e0;
+}
+
+.panel-content-native {
+  padding: 12px 10px;
+  display: flex;
+  flex-direction: column;
+}
