@@ -834,7 +834,6 @@
 
   /* Текст симптома */
   .fast-checkbox-text {
-    font-family: 'Inter', sans-serif;
     font-size: 16px;
     line-height: 1.4;
     color: #212121;
@@ -1166,29 +1165,15 @@
 
 <!-- Этот блок строго без scoped — для глобальных правил шрифтов -->
 <style>
-  @font-face {
-    font-family: 'Inter';
-    src: url('./assets/fonts/Inter-Regular.woff2') format('woff2');
-    font-weight: 400;
-    font-style: normal;
-    font-display: swap;
-  }
-
-  @font-face {
-    font-family: 'Inter';
-    src: url('./assets/fonts/Inter-Medium.woff2') format('woff2');
-    font-weight: 500;
-    font-style: normal;
-    font-display: swap;
-  }
-
   * {
     box-sizing: border-box;
   }
 
+
+
   /* Применяем ко всем элементам приложения */
   body, html, #app, .app-wrapper, input, button, select, textarea {
-    font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif !important;
+    font-family: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", "Noto Sans", "Liberation Sans", Arial, sans-serif !important;
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
   }
