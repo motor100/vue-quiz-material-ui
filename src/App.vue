@@ -9,6 +9,9 @@
   //import { handleExcelImport } from './services/excelParser';
   //await handleExcelImport();
 
+  // Выисление знака Зодиака и возраста
+  // const birthDateObject = new Date(personalData.dateOfBirth); 
+  // const userZodiac = getZodiacSign(birthDateObject); // параметр - это объект даты new Date()
 
   // Сохраняем и восстанавливаем текущий шаг, чтобы пользователь не начинал сначала
   // Состояния: 'personal' | 'questions' | 'results'
@@ -512,7 +515,7 @@
           <button 
             type="button" 
             @click="questionStepBack" 
-            class="mobile-tab-btn mobile-tab-btn--back"
+            class="mobile-tab-btn"
           >
             Личные данные
           </button>
@@ -742,14 +745,6 @@
   .form-group {
     margin-bottom: 8px;
   }
-  :deep(.v-text-field input) {
-    min-height: auto;
-    height: 40px;
-    padding: 8px 14px;
-  }
-  :deep(.v-checkbox .v-selection-control) {
-    min-height: 40px;
-  }
   .main-title {
     padding-left: 16px;
     padding-right: 16px;
@@ -895,6 +890,7 @@
 
   .panel-summary-native {
     display: flex;
+    gap: 10px;
     justify-content: space-between;
     align-items: center;
     padding: 12px 20px;
@@ -911,6 +907,7 @@
 
   /* Кастомная стрелочка-иконка */
   .panel-icon-native {
+    display: block;
     width: 10px;
     height: 10px;
     border-bottom: 2px solid #757575;
@@ -918,6 +915,7 @@
     transform: rotate(45deg);
     transition: transform 0.2s ease;
     margin-right: 4px;
+    flex-shrink: 0;
   }
 
   /* Поворот стрелочки при открытии */
@@ -1044,6 +1042,9 @@
   .flex-grow-1 {
     flex-grow: 1;
   }
+  .flex-shrink-0 {
+    flex-shrink: 0;
+  }
   .elevation-1 {
     box-shadow: rgba(0, 0, 0, 0.3) 0px 1px 2px 0px, rgba(0, 0, 0, 0.15) 0px 1px 3px 1px;
   }
@@ -1139,10 +1140,12 @@
     transition: all 0.2s;
   }
 
+  /*
   .mobile-tab-btn--back {
     background-color: #f5f5f5;
     border-color: #d6d6d6;
   }
+  */
 
   /* Активная вкладка на мобильных */
   .mobile-tab-btn--active {
@@ -1169,12 +1172,11 @@
     box-sizing: border-box;
   }
 
-
-
   /* Применяем ко всем элементам приложения */
   body, html, #app, .app-wrapper, input, button, select, textarea {
     font-family: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", "Noto Sans", "Liberation Sans", Arial, sans-serif !important;
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
+    font-size: 16px;
   }
 </style>
