@@ -1,17 +1,26 @@
 <script setup>
   import { reactive, ref, computed, onMounted, watch } from 'vue';
   import { appConfig } from './config'
-  //import {getZodiacSign} from "./utils/_getZodiacSign";
-  //import {getAge} from "./utils/_getAge";
-  import parsedData from './xlsData/xlsParsedDump.json';
+  import { GENERAL_PRESCRIPTION_TEXT } from './constants/prescriptionInstruction';
+  import { calculateQuizResults, getPrescriptionKey } from './services/quizCalculator';
+
+  // Асинхронная ленивая загрузка тяжелого дампа данных
+  const loadQuizData = async () => {
+    try {
+      // Динамический импорт: Webpack/Vite вынесет этот JSON в отдельный чанк (файл)
+      const module = await import('./xlsData/xlsParsedDump.json');
+      parsedData.value = module.default;
+      
+      // Как только данные прилетели — трансформируем их для интерфейса
+      items.value = transformJsonData(parsedData.value.questions);
+    } catch (e) {
+      console.error('Не удалось динамически загрузить дамп вопросов квиза:', e);
+    }
+  };
 
   // Убрать комментарий для парсинга из файла Excel
   //import { handleExcelImport } from './services/excelParser';
   //await handleExcelImport();
-
-  // Выисление знака Зодиака и возраста
-  // const birthDateObject = new Date(personalData.dateOfBirth); 
-  // const userZodiac = getZodiacSign(birthDateObject); // параметр - это объект даты new Date()
 
   // Сохраняем и восстанавливаем текущий шаг, чтобы пользователь не начинал сначала
   // Состояния: 'personal' | 'questions' | 'results'
@@ -58,16 +67,6 @@
 
   // Объект результатов для передачи на сервер
   const results = ref({})
-
-  // Правила валидации Vuetify
-  /*
-  const rules = {
-    required: v => !!v || 'Это поле обязательно для заполнения',
-    name: v => (v && v.length >= 3 && v.length <= 50) || 'Поле должно быть от 3 до 50 символов',
-    email: v => !v || /^\w+([.-]?\w+)*@\w+([.-]?\w+)*(\.\w{2,3})+$/.test(v) || 'Введен некорректный E-mail',
-    //phone: v => !v || v.length <= 19 || 'Поле должно быть не более 19 символов',
-  };
-  */
 
   // Объект для хранения ошибок валидации полей формы
   const errors = reactive({
@@ -199,6 +198,15 @@
   function questionStepBack() {
     currentStep.value = 'personal';
   }
+  
+  // Реактивный ключ дозировки на основе даты рождения
+  const currentPrescriptionKey = computed(() => getPrescriptionKey(personalData.dateOfBirth));
+
+  // Динамический расчет результатов (работает с распакованным асинхронным parsedData.value)
+  const calculatedResultsList = computed(() => {
+    if (!parsedData.value) return [];
+    return calculateQuizResults(parsedData.value, selectedSymptoms, personalData, appConfig.defaultItemsCount);
+  });
 
   // Шаг вопросов вперед к шагу результатов
   function questionStepNext() {
@@ -217,56 +225,32 @@
       .filter(item => item.sections.length > 0);
 
     // Сборка объекта с результатами для отправки на сервер
-    results.value.token = orderData.value.token // На всякий случай, если WP не нашел токен в параметрах URL
-    results.value.customer = { ...personalData } // деструктуризация и разрыв реактивной связи
-    //results.value.checkboxes = JSON.parse(JSON.stringify(selectedSymptomsStructured.value)) // передаю JS объект вместо proxy
+    results.value.token = orderData.value.token;
+    results.value.customer = { ...personalData };
     results.value.checkboxes = structuredSymptoms;
-     // тут будут подобранные БАДы
-    results.value.results = [
-      { // описание соли из таблицы products
-        'salt': '2', // номер или название соли
-        'group': '1', // вкладка products строка group 
-        'img': '', // вкладка products строка img
-        'description': '', // вкладка products строка description. Проверить символы переноса строк.
-        'long_description': '', // вкладка products строка long_description. Проверить символы переноса строк.
-        'composition': '', // вкладка products строка composition
-        'prescription_14': '', // вкладка products строка prescription_14. Проверить символы переноса строк.
-        'prescription_8': '', // вкладка products строка prescription_8. Проверить символы переноса строк.
-        'prescription_2': '', // вкладка products строка prescription_2. Проверить символы переноса строк.
-        'prescription_0': '', // вкладка products строка prescription_0. Проверить символы переноса строк.
-      },
-      {
-        'salt': '9',
-        'group': '2',
-        'img': '', // вкладка products строка img
-        'description': '', // вкладка products строка description. Проверить символы переноса строк.
-        'long_description': '', // вкладка products строка long_description. Проверить символы переноса строк.
-        'composition': '', // вкладка products строка composition
-        'prescription_14': '', // вкладка products строка prescription_14. Проверить символы переноса строк.
-        'prescription_8': '', // вкладка products строка prescription_8. Проверить символы переноса строк.
-        'prescription_2': '', // вкладка products строка prescription_2. Проверить символы переноса строк.
-        'prescription_0': '', // вкладка products строка prescription_0. Проверить символы переноса строк.
-      },
-    ]
+    
+    // Передаем рассчитанный массив солей в объект результатов
+    results.value.results = calculatedResultsList.value;
 
     // Отправка данных на сервер
-    fetchResultsData()
+    fetchResultsData();
 
-    // Полная очистка всего кэша
-    localStorage.clear() // Удаляет все ключи разом
+    // Полная очистка кэша ответов для нового прохождения квиза
+    localStorage.clear();
 
-    // Корректный сброс реактивных состояний до начальных значений
+    // Сброс реактивных состояний формы
     Object.keys(selectedSymptoms).forEach(key => delete selectedSymptoms[key]);
     personalData.firstName = '';
     personalData.lastName = '';
     personalData.email = '';
     personalData.dateOfBirth = '';
-    personalDataIsAccepted.value = false
-    privacyPolicyIsAccepted.value = false
-    activeTabId.value = 1
+    personalDataIsAccepted.value = false;
+    privacyPolicyIsAccepted.value = false;
+    activeTabId.value = 1;
   }
 
   // Преобразование данных JSON из parsedData.questions в формат для интерфейса
+  /*
   function transformJsonData(questionsDataObj) {
     if (!questionsDataObj) return [];
     
@@ -319,10 +303,11 @@
 
     return result;
   }
+  */
 
-  const items = ref([])
-
-  items.value = transformJsonData(parsedData.questions)
+  // Объявляем реактивные переменные для асинхронных данных
+  const parsedData = ref(null);
+  const items = ref([]);
 
   // Вычисляем активный элемент на основе activeTabId
   const filteredItem = computed(() => {
@@ -376,6 +361,9 @@
   // Инициализация при монтировании компонента
   onMounted(async () => {
     await fetchOrderData();
+
+    // Загружаем тяжелый JSON параллельно в фоновом режиме, не блокируя UI формы
+    await loadQuizData();
   });
 
   // Переключение вкладок вопросов
@@ -610,96 +598,40 @@
 
       <div class="container-native" v-if="currentStep === 'results'">
 
-        <h2 class="text-center">Вы прошли тестирование в экспертной программе по подбору цветов Баха для тканевой биохимической терапии</h2>
-        <div class="disclaimer elevation-2 rounded-lg pa-4">
-          <svg viewBox="0 0 24 24" width="24" height="24" fill="red" class="flex-shrink-0">
-            <path d="M11 15h2v2h-2zm0-8h2v6h-2zm.99-5C6.47 2 2 6.48 2 12s4.47 10 9.99 10C17.52 22 22 17.52 22 12S17.52 2 11.99 2zM12 20c-4.42 0-8-3.58-8-8s3.58-8 8-8 8 3.58 8 8-3.58 8-8 8z"></path>
-          </svg>
-          <span class="text">Внимание! Автоматизированный тест не является назначением врача. В случае проблем со здоровьем следует обращаться за квалифицированной медицинской помощью.</span>
-        </div>
-        <div class="your-result-text">Ваш результат:</div>
+    <h2 class="text-center">Вы прошли тестирование в экспертной программе по подбору цветов Баха для тканевой биохимической терапии</h2>
+    <div class="disclaimer elevation-2 rounded-lg pa-4">
+      <svg viewBox="0 0 24 24" width="24" height="24" fill="red" class="flex-shrink-0">
+        <path d="M11 15h2v2h-2zm0-8h2v6h-2zm.99-5C6.47 2 2 6.48 2 12s4.47 10 9.99 10C17.52 22 22 17.52 22 12S17.52 2 11.99 2zM12 20c-4.42 0-8-3.58-8-8s3.58-8 8-8 8 3.58 8 8-3.58 8-8 8z"></path>
+      </svg>
+      <span class="text">Внимание! Автоматизированный тест не является назначением врача. В случае проблем со здоровьем следует обращаться за квалифицированной медицинской помощью.</span>
+    </div>
+    <div class="your-result-text">Ваш результат:</div>
 
-        <div class="product-item mb-4">
-          <div class="product-item__image rounded-lg mb-4 bg-white">
-            <img src="/img/photo-salts-2-1.png" alt="">
-          </div>
-          <div class="product-item__description">
-            <div class="product-item__title">Соль: 2</div>
-            <p class="product-item__text">Регенерация Участвует в процессах роста и регенерации, отвечает за стабильность клеточных мембран.</p>
-          </div>
-        </div>
-
-        <div class="product-item mb-4">
-          <div class="product-item__image rounded-lg mb-4 bg-white">
-            <img src="/img/photo-salts-25-1.jpg" alt="">
-          </div>
-          <div class="product-item__description">
-            <div class="product-item__title">Соль: 25</div>
-            <p class="product-item__text">Биоритмы Дополнительная соль для восстановления биоритмов.</p>
-          </div>
-        </div>
-
-        <div class="expansion-panels-native mb-4">
-          <details class="panel-native">
-            <summary class="panel-summary-native">
-              Как принимать
-              <span class="panel-icon-native"></span>
-            </summary>
-            <div class="panel-content-native">
-              <!-- Постоянный обязательный текст -->
-              <!-- Его можно вынести в отдельный файл или в config.js. Чтобы он тут не занимал место -->
-              <div class="required-text">
-                Принимайте назначенные цветы за 30-40 минут до еды или через полтора часа после еды. Избегайте чистки зубов и курения за 20 минут до и после приема цветов. цветы  могут приниматься в сухом виде – таблетки рассасываются во рту или непосредственно под языком. Вы можете растворить  цветы в небольшом количестве воды 120-150 мл ( цветы в таблетках растворяются очень медленно)  и принимать небольшими глотками, удерживая каждый глоток во рту по несколько секунд.<br>
-                Если назначено несколько цветов, и Вам удобно принимать их одновременно, делайте перерыв 5-10 минут между разными цветами. Допустимо растворять все цветы в 1 л воды и принимать в течение дня как удобно.<br>
-                Каждый флакон рассчитан на стандартный курс приема.<br>
-                цветы в таблетках растворяются медленно. Если Вы предпочитаете растворять цветы в воде – заказывайте цветы в тритурациях (порошки), они быстро растворимы.  1 флакону по 200 таблеток эквивалентны 3 флакона тритураций по 20 грамм.<br> 
-                Помните, что во время приема цветов  всегда необходимо принимать большое количество чистой воды (чай, кофе и другие жидкости не учитываются). Ориентировочный расчет чистой воды 25-30 мл на кг веса. Если Ваш врач ограничивает Вам прием жидкостей, то не превышайте дозу, назначенную доктором, но всегда отдавайте предпочтение чистой воде.<br>
-                В рекомендациях дано оптимальное время приема каждой цветы в соответствии с биоритмами организма и потребностью органов-мишеней к каждой цветы. Вы можете пользоваться данным графиком или составить свой удобный для вас.<br> 
-                Рекомендовано принимать цветы 5 дней в неделю (с понедельника по пятницу) и делать 2 дня перерыва.<br> 
-                Дополнительные комплексные цветы рекомендовано принимать после окончания основного курса приема цветов №№1-27 для пролонгирования и закрепления эффекта.<br>
-                Кофе и другие антидоты, от которых воздерживаются при приеме гомеопатических препаратов не оказывают существенного влияния на терапию цветами. цветы хорошо сочетаются с другими видами лечения, побочные эффекты не выявлены. Однако, могут быть кратковременные реакции ухудшения, которые проходят самостоятельно в течение 3-4 дней. Эффективность оценивается через 1-2 дня при острых ситуациях, через 4-6 недель при хронических. После окончания курса эффект постепенно нарастает в течение 2-3 месяцев.<br>
-                Помните, что тестирование не заменяет консультации врача, носит ознакомительный характер и не является медицинским заключением. Любое заболевание требует консультации специалиста. Искусственный интеллект не может заменить врача. цветы не являются БАД и не являются лекарством. Это диетическое питание.
-              </div>
-
-              <!-- Описание каждого из продуктов. Вставляется в зависимости от результата -->
-              <p class="product-text">
-                Соль  №2 Calcium phosphoricum D6 (Фосфат кальция) принимать по 5 таблеток утром. 
-                Возможная реакция в первые дни приеме-боли в области суставов, проходят самостоятельно. Соль  №2 для оптимального эффекта  требует длительного приема от 3 до 12 месяцев.
-              </p>
-
-              <p class="product-text">
-                Соль  №25  Aurum chloratum natronatum D12 ( Хлорид золота) – принимать по 2 таблетки утром, в полдень и рано вечером, если есть нарушения сна - принимать дополнительно 2 таблетки перед сном. 
-                Возможные реакции во время приема не зафиксированы.
-              </p>
-
-              <p class="product-text">
-                Vita (Работоспособность)- после окончания основного курса, перейти на прием комплексной цветы по 5 таблеток утром.
-              </p>
-            </div>
-          </details>
-        </div>
-
-        <div class="rounded-lg ps-4 pt-1 pb-1 bg-white">
-          <p>Рецепт на подобранные Цветы Баха направлен в аптеку NaturaPharma на ваши контактные данные</p>
-          <p>Сайт аптеки: {{ appConfig.apiEndpoint }}</p>
-          <p>Телефон: {{ appConfig.phone }}</p>
-          <p>Email: {{ appConfig.email }}</p>
-        </div>
-
-        <div class="group-buttons d-flex justify-space-between mt-6">
-          <a
-            :href="appConfig.completeAgainUrl"
-            class="btn">
-            Пройти снова
-          </a>
-          <button
-            class="btn"
-            @click="windowPrint">
-            Печать
-          </button>
-        </div>
-
+    <div class="panel-content-native">
+      <!-- Выводим общий текст из констант -->
+      <div class="required-text" style="white-space: pre-wrap;">
+        {{ GENERAL_PRESCRIPTION_TEXT }}
       </div>
+
+      <!-- Динамическое описание индивидуальных инструкций солей под возраст -->
+      <div v-for="salt in results.results || []" :key="'presc-' + salt.salt">
+        <p class="product-text" v-if="salt[currentPrescriptionKey]">
+          {{ salt[currentPrescriptionKey] }}
+        </p>
+      </div>
+    </div>
+
+    <div class="rounded-lg ps-4 pt-1 pb-1 bg-white">
+      <p>Рецепт на подобранные Цветы Баха направлен в аптеку NaturaPharma на ваши контактные данные</p>
+      <p>Сайт аптеки: {{ appConfig.apiEndpoint }}</p>
+      <p>Телефон: {{ appConfig.phone }}</p>
+      <p>Email: {{ appConfig.email }}</p>
+    </div>
+
+    <div class="group-buttons d-flex justify-space-between mt-6">
+      <a :href="appConfig.completeAgainUrl" class="btn">Пройти снова</a>
+      <button class="btn" @click="windowPrint">Печать</button>
+    </div>
 
     </main>
   </div>

@@ -14,8 +14,8 @@ export const ZodiacSign = {
 }
 
 export const getZodiacSign = (date) => {
-  const day = date.getUTCDate();
-  const month = date.getUTCMonth() + 1; // Месяцы начинаются с 0
+  const day = date.getDate();
+  const month = date.getMonth() + 1; // Месяцы начинаются с 0
 
   if ((month === 1 && day >= 20) || (month === 2 && day <= 18)) {
     return ZodiacSign.aquarius; // Водолей
